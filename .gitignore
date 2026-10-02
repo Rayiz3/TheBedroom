@@ -38,3 +38,5 @@ next-env.d.ts
 /outputs/
 /work/
 /site-build.tar.gz
+
+/artifacts/
