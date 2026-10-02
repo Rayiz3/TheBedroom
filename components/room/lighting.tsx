@@ -62,11 +62,13 @@ export function BlenderLighting({
   directionalIntensity,
   directionalDirection,
   directionalElevation,
+  showGuide = true,
 }: {
   ambientIntensity: number;
   directionalIntensity: number;
   directionalDirection: number;
   directionalElevation: number;
+  showGuide?: boolean;
 }) {
   const { scene } = useThree();
   const sun = useRef<THREE.DirectionalLight>(null);
@@ -126,11 +128,13 @@ export function BlenderLighting({
         shadow-camera-top={4}
         shadow-camera-bottom={-4}
       />
-      <LightDirectionGuide
-        color="#ffd27a"
-        position={sunPosition}
-        target={ROOM_ORIGIN}
-      />
+      {showGuide && (
+        <LightDirectionGuide
+          color="#ffd27a"
+          position={sunPosition}
+          target={ROOM_ORIGIN}
+        />
+      )}
     </>
   );
 }

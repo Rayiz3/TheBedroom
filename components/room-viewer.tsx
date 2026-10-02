@@ -26,8 +26,17 @@ import { ViewerNavigation } from '@/components/viewer-navigation';
 
 import styles from './room-viewer.module.css';
 import shellStyles from './viewer-shell.module.css';
+import { ConfiguratorPanel } from './ui/configurator/configurator-panel';
+import configuratorStyles from './ui/configurator/configurator.module.css';
+import Link from 'next/link';
+import { ArrowLeft, Move } from 'lucide-react';
 
-export function RoomViewer() {
+export function RoomViewer({
+  variant = 'room',
+}: {
+  variant?: 'room' | 'configurator';
+}) {
+  const isConfigurator = variant === 'configurator';
   const [initialFrameReady, setInitialFrameReady] = useState(false);
   const timing = useRef({
     initial: 0,
@@ -129,9 +138,32 @@ export function RoomViewer() {
   }, []);
 
   return (
-    <main className={`${shellStyles.shell} ${styles.viewer}`}>
+    <main
+      className={
+        isConfigurator
+          ? configuratorStyles.shell
+          : `${shellStyles.shell} ${styles.viewer}`
+      }
+    >
+      {isConfigurator && (
+        <header className={configuratorStyles.header}>
+          <Link
+            href="/"
+            className={configuratorStyles.brand}
+            aria-label="Spatially 홈"
+          >
+            Spatially
+          </Link>
+          <span className={configuratorStyles.headerTitle}>침실 꾸미기</span>
+          <Link href="/" className={configuratorStyles.back}>
+            <ArrowLeft size={16} /> 돌아가기
+          </Link>
+        </header>
+      )}
       <section
-        className={shellStyles.stage}
+        className={
+          isConfigurator ? configuratorStyles.stage : shellStyles.stage
+        }
         aria-label={`${bedSize === 'single' ? '싱글' : '퀸'} 침대 3D 룸 프리뷰`}
       >
         <RoomViewerBoundary
@@ -162,6 +194,7 @@ export function RoomViewer() {
             </Suspense>
             <Suspense fallback={null}>
               <BlenderLighting
+                showGuide={!isConfigurator}
                 ambientIntensity={ambientIntensity}
                 directionalIntensity={directionalIntensity}
                 directionalDirection={directionalDirection}
@@ -186,36 +219,72 @@ export function RoomViewer() {
             </Suspense>
           </Canvas>
         </RoomViewerBoundary>
-        <RoomStageOverlay
-          ready={ready && initialFrameReady}
-          failed={failed}
-          modelPath={modelPath}
-        />
+        {isConfigurator ? (
+          <>
+            {!initialFrameReady && !failed && (
+              <output className={configuratorStyles.loading} aria-live="polite">
+                <span />
+                침실을 준비하고 있어요
+              </output>
+            )}
+            {initialFrameReady && !failed && (
+              <p className={configuratorStyles.hint}>
+                <Move size={14} /> 드래그해서 둘러보세요{' '}
+                <span>스크롤로 확대</span>
+              </p>
+            )}
+          </>
+        ) : (
+          <RoomStageOverlay
+            ready={ready && initialFrameReady}
+            failed={failed}
+            modelPath={modelPath}
+          />
+        )}
       </section>
 
-      <RoomControlPanel
-        showColliders={showColliders}
-        onShowCollidersChange={measureChange(setShowColliders)}
-        collapsed={panelCollapsed}
-        onCollapsedChange={setPanelCollapsed}
-        hdriIntensity={hdriIntensity}
-        onHdriIntensityChange={measureChange(setHdriIntensity)}
-        ambientIntensity={ambientIntensity}
-        onAmbientIntensityChange={measureChange(setAmbientIntensity)}
-        directionalIntensity={directionalIntensity}
-        onDirectionalIntensityChange={measureChange(setDirectionalIntensity)}
-        directionalDirection={directionalDirection}
-        onDirectionalDirectionChange={measureChange(setDirectionalDirection)}
-        directionalElevation={directionalElevation}
-        onDirectionalElevationChange={measureChange(setDirectionalElevation)}
-      />
-      <RoomProductPanel
-        bedSize={bedSize}
-        onBedSizeChange={measureChange(handleBedSizeChange)}
-        palette={palette}
-        onPaletteChange={measureChange(setpalette)}
-      />
-      <ViewerNavigation currentView="Room View" />
+      {isConfigurator ? (
+        <ConfiguratorPanel
+          bedSize={bedSize}
+          onBedSizeChange={measureChange(handleBedSizeChange)}
+          palette={palette}
+          onPaletteChange={measureChange(setpalette)}
+          sunlight={directionalDirection}
+          onSunlightChange={measureChange(setDirectionalDirection)}
+        />
+      ) : (
+        <>
+          <RoomControlPanel
+            showColliders={showColliders}
+            onShowCollidersChange={measureChange(setShowColliders)}
+            collapsed={panelCollapsed}
+            onCollapsedChange={setPanelCollapsed}
+            hdriIntensity={hdriIntensity}
+            onHdriIntensityChange={measureChange(setHdriIntensity)}
+            ambientIntensity={ambientIntensity}
+            onAmbientIntensityChange={measureChange(setAmbientIntensity)}
+            directionalIntensity={directionalIntensity}
+            onDirectionalIntensityChange={measureChange(
+              setDirectionalIntensity,
+            )}
+            directionalDirection={directionalDirection}
+            onDirectionalDirectionChange={measureChange(
+              setDirectionalDirection,
+            )}
+            directionalElevation={directionalElevation}
+            onDirectionalElevationChange={measureChange(
+              setDirectionalElevation,
+            )}
+          />
+          <RoomProductPanel
+            bedSize={bedSize}
+            onBedSizeChange={measureChange(handleBedSizeChange)}
+            palette={palette}
+            onPaletteChange={measureChange(setpalette)}
+          />
+          <ViewerNavigation currentView="Room View" />
+        </>
+      )}
     </main>
   );
 }

@@ -1,9 +1,15 @@
 import Link from 'next/link';
-import { BedDouble, SwatchBook } from 'lucide-react';
+import { BedDouble, SwatchBook, Palette } from 'lucide-react';
 
 import styles from './page.module.css';
 
 const views = [
+  {
+    href: '/configurator',
+    title: 'Configurator',
+    icon: Palette,
+    variant: styles.room,
+  },
   {
     href: '/room',
     title: 'Room View',
@@ -25,8 +31,16 @@ export default function Home() {
         {views.map((view) => {
           const Icon = view.icon;
           return (
-            <Link key={view.href} href={view.href} className={`${styles.card} ${view.variant}`}>
-              <Icon className={styles.icon} strokeWidth={1.25} aria-hidden="true" />
+            <Link
+              key={view.href}
+              href={view.href}
+              className={`${styles.card} ${view.variant}`}
+            >
+              <Icon
+                className={styles.icon}
+                strokeWidth={1.25}
+                aria-hidden="true"
+              />
               <h2>{view.title}</h2>
             </Link>
           );

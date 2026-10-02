@@ -251,3 +251,5 @@ Loading uses a 42px single-stroke silver ring with a small uppercase mono status
 - **Don't** turn technical controls into oversized marketing cards or generous consumer-app spacing.
 - **Don't** add ornamental gradients, heavy glows, or deep shadows beyond the established tonal layering.
 - **Don't** invent additional viewer routes or merge Room and Texture responsibilities without an explicit product change.
+
+**Scoped `/configurator` exception:** The user-requested configurator has its own light Spatially reference-led system, documented in [Configurator DESIGN.md](components/ui/configurator/DESIGN.md). That local document governs `/configurator` only, including its serif title, purple selection states, single rail, and mobile scene-above-panel layout. The Room and Texture inspection system above remains in force for those views.
