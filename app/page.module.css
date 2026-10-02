@@ -1,0 +1,99 @@
+.launcher {
+  min-height: 100dvh;
+  overflow-y: auto;
+  display: grid;
+  place-items: center;
+  padding: 40px;
+  background:
+    radial-gradient(circle at 74% 28%, rgb(255 255 255 / 4%), transparent 32%),
+    #151515;
+}
+
+.grid {
+  width: min(1180px, 100%);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.card {
+  position: relative;
+  min-width: 0;
+  min-height: 350px;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  place-items: center;
+  padding: 20px;
+  border: 1px solid rgb(255 255 255 / 9%);
+  border-radius: 12px;
+  background: #222221;
+  box-shadow: 0 18px 48px rgb(0 0 0 / 18%);
+  transition: transform 220ms cubic-bezier(.16, 1, .3, 1), border-color 220ms ease, background 220ms ease;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 20px 20px 74px;
+  border-radius: 10px;
+  background: var(--preview-surface, #1a1a19);
+  pointer-events: none;
+}
+
+.room { --preview-surface: #1a1a19; }
+
+.texture::before {
+  background-color: #191918;
+  background-image:
+    linear-gradient(45deg, rgb(255 255 255 / 3%) 25%, transparent 25%, transparent 75%, rgb(255 255 255 / 3%) 75%),
+    linear-gradient(45deg, rgb(255 255 255 / 3%) 25%, transparent 25%, transparent 75%, rgb(255 255 255 / 3%) 75%);
+  background-position: 0 0, 5px 5px;
+  background-size: 10px 10px;
+}
+
+.icon {
+  position: relative;
+  width: clamp(74px, 9vw, 116px);
+  height: auto;
+  color: rgb(229 232 228 / 72%);
+  transition: transform 240ms cubic-bezier(.16, 1, .3, 1), color 220ms ease;
+}
+
+.card h2 {
+  position: relative;
+  justify-self: start;
+  max-width: 420px;
+  margin: 22px 4px 2px;
+  color: #f2f2ef;
+  font-size: clamp(21px, 2.1vw, 28px);
+  font-weight: 560;
+  line-height: 1.18;
+  letter-spacing: -.025em;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  border-color: rgb(255 255 255 / 20%);
+  background: #272726;
+}
+
+.card:hover .icon {
+  transform: scale(1.035);
+  color: rgb(239 241 237 / 92%);
+}
+
+.card:active { transform: translateY(-1px) scale(.995); }
+
+@media (max-width: 680px) {
+  .launcher { place-items: start center; padding: 38px 14px; }
+  .grid { grid-template-columns: 1fr; }
+  .card { min-height: 300px; padding: 14px; }
+  .card::before { inset: 14px 14px 66px; }
+  .card h2 { margin: 18px 3px 3px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .icon { transition: none; }
+}
