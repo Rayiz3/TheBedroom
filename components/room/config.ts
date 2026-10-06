@@ -66,6 +66,7 @@ export const PILLOW_FABRIC_PATCH_SIZE = 0.09;
 export const CARCASS_MODEL_PATH = '/assets/carcass.glb';
 export const OBJECTS1_MODEL_PATH = '/assets/objects1.glb';
 export const LAMP_MODEL_PATH = '/assets/lamp.glb';
+export const CEILING_LAMP_MODEL_PATH = '/assets/lamp_ceiling.glb';
 export const STOOL_MODEL_PATH = '/assets/stool.glb';
 export const FLOOR_MODEL_PATH = '/assets/floor.glb';
 export const WALL_MODEL_PATH = '/assets/wall.glb';
@@ -95,6 +96,7 @@ export const ROOM_MODEL_PATHS = [
   CARCASS_MODEL_PATH,
   OBJECTS1_MODEL_PATH,
   LAMP_MODEL_PATH,
+  CEILING_LAMP_MODEL_PATH,
   STOOL_MODEL_PATH,
   FLOOR_MODEL_PATH,
   WALL_MODEL_PATH,
@@ -121,10 +123,10 @@ export type LightingSettings = {
   directionalElevation: number;
 };
 
-export const WALL_SOURCE_CENTER = new THREE.Vector3(-2.34, 1.8, 0);
+export const WALL_SOURCE_CENTER = new THREE.Vector3(-2.34, 1.4, 0);
 export const WALL_SOURCE_OFFSET = WALL_SOURCE_CENTER.clone().multiplyScalar(-1);
-export const CEILING_POSITION = new THREE.Vector3(0, 0, 0);
-export const CEILING_CENTER = new THREE.Vector3(0, 3.66, 0);
+export const CEILING_POSITION = new THREE.Vector3(0, -0.8, 0);
+export const CEILING_CENTER = new THREE.Vector3(0, 2.86, 0);
 export const CEILING_INWARD_NORMAL = new THREE.Vector3(0, -1, 0);
 export const WINDOW_POSITION = new THREE.Vector3(2.34, 1.8, 0);
 export const WINDOW_SOURCE_OFFSET = WINDOW_POSITION.clone().multiplyScalar(-1);
@@ -137,19 +139,19 @@ export const STOOL_POSITION = new THREE.Vector3(1, 0, -2);
 export const WALL_PLACEMENTS = [
   {
     name: 'Wall_North',
-    position: new THREE.Vector3(0, 1.8, -2.34),
+    position: new THREE.Vector3(0, 1.4, -2.34),
     rotationY: Math.PI / 2,
     inwardNormal: new THREE.Vector3(0, 0, 1),
   },
   {
     name: 'Wall_West',
-    position: new THREE.Vector3(-2.34, 1.8, 0),
+    position: new THREE.Vector3(-2.34, 1.4, 0),
     rotationY: 0,
     inwardNormal: new THREE.Vector3(1, 0, 0),
   },
   {
     name: 'Wall_South',
-    position: new THREE.Vector3(0, 1.8, 2.34),
+    position: new THREE.Vector3(0, 1.4, 2.34),
     rotationY: Math.PI / 2,
     inwardNormal: new THREE.Vector3(0, 0, -1),
   },

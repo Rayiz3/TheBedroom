@@ -6,6 +6,10 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { memo, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useRoomModel } from './room-assets';
+import {
+  isCameraInsideMeshBounds,
+  setMainCameraRendering,
+} from './camera-visibility';
 
 import {
   CEILING_CENTER,
@@ -35,28 +39,6 @@ function cloneRoomModel(source: THREE.Group) {
   return model;
 }
 
-function setMainCameraRendering(root: THREE.Object3D, rendered: boolean) {
-  root.traverse((object) => {
-    if (!(object instanceof THREE.Mesh)) return;
-    const materials = Array.isArray(object.material)
-      ? object.material
-      : [object.material];
-
-    materials.forEach((material) => {
-      const state = material.userData.roomMainPassState as
-        | { colorWrite: boolean; depthWrite: boolean }
-        | undefined;
-      const originalState = state ?? {
-        colorWrite: material.colorWrite,
-        depthWrite: material.depthWrite,
-      };
-      material.userData.roomMainPassState = originalState;
-      material.colorWrite = rendered ? originalState.colorWrite : false;
-      material.depthWrite = rendered ? originalState.depthWrite : false;
-    });
-  });
-}
-
 function RoomArchitecture() {
   const floorGltf = useRoomModel(FLOOR_MODEL_PATH);
   const wallGltf = useRoomModel(WALL_MODEL_PATH);
@@ -83,6 +65,8 @@ function RoomArchitecture() {
   const ceilingGroup = useRef<THREE.Group>(null);
   const windowGroup = useRef<THREE.Group>(null);
   const cameraOffset = useMemo(() => new THREE.Vector3(), []);
+  const cameraWorldPosition = useMemo(() => new THREE.Vector3(), []);
+  const localCameraPosition = useMemo(() => new THREE.Vector3(), []);
 
   useLayoutEffect(() => {
     [floor, ...walls].forEach((roomObject) => {
@@ -102,24 +86,35 @@ function RoomArchitecture() {
   }, [ceiling, floor, walls, window]);
 
   useFrame(() => {
+    camera.getWorldPosition(cameraWorldPosition);
     WALL_PLACEMENTS.forEach((placement, index) => {
       const wallGroup = wallGroups.current[index];
       if (!wallGroup) return;
-      cameraOffset.copy(camera.position).sub(placement.position);
+      cameraOffset.copy(cameraWorldPosition).sub(placement.position);
       setMainCameraRendering(
         wallGroup,
-        cameraOffset.dot(placement.inwardNormal) >= 0,
+        cameraOffset.dot(placement.inwardNormal) >= 0 &&
+          !isCameraInsideMeshBounds(
+            wallGroup,
+            cameraWorldPosition,
+            localCameraPosition,
+          ),
       );
     });
     if (ceilingGroup.current) {
-      cameraOffset.copy(camera.position).sub(CEILING_CENTER);
+      cameraOffset.copy(cameraWorldPosition).sub(CEILING_CENTER);
       setMainCameraRendering(
         ceilingGroup.current,
-        cameraOffset.dot(CEILING_INWARD_NORMAL) >= 0,
+        cameraOffset.dot(CEILING_INWARD_NORMAL) >= 0 &&
+          !isCameraInsideMeshBounds(
+            ceilingGroup.current,
+            cameraWorldPosition,
+            localCameraPosition,
+          ),
       );
     }
     if (windowGroup.current) {
-      cameraOffset.copy(camera.position).sub(WINDOW_POSITION);
+      cameraOffset.copy(cameraWorldPosition).sub(WINDOW_POSITION);
       setMainCameraRendering(
         windowGroup.current,
         cameraOffset.dot(WINDOW_INWARD_NORMAL) >= 0,

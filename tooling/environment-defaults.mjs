@@ -43,6 +43,8 @@ export function environmentDefaultsPlugin() {
               ['directionalIntensity', 0, 10],
               ['directionalDirection', -180, 180],
               ['directionalElevation', 0, 90],
+              ['ceilingLightIntensity', 0, 20],
+              ['ceilingLightTemperature', 1800, 10000],
             ]) {
               const value = input[key];
               if (

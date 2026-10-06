@@ -115,7 +115,7 @@ export function BlenderLighting({
         position={sunPosition}
         color={WINDOW_SUN_COLOR}
         intensity={directionalIntensity}
-        shadow-intensity={0.65}
+        shadow-intensity={0.75}
         shadow-bias={-0.0002}
         shadow-normalBias={0.02}
         shadow-radius={5}

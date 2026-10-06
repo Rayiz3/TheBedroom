@@ -55,6 +55,10 @@ function RangeControl({
 }
 
 type RoomControlPanelProps = {
+  ceilingLightIntensity: number;
+  onCeilingLightIntensityChange: (value: number) => void;
+  ceilingLightTemperature: number;
+  onCeilingLightTemperatureChange: (value: number) => void;
   onSaveEnvironmentDefaults: () => void;
   environmentSaveMessage: string;
   hdriSource: RoomHdri;
@@ -199,6 +203,28 @@ export function RoomControlPanel(props: RoomControlPanelProps) {
                 step={1}
                 valueLabel={`${props.directionalElevation.toFixed(0)}°`}
                 onChange={props.onDirectionalElevationChange}
+              />
+            </div>
+            <div className={`${styles.rangeStack} ${styles.directionControls}`}>
+              <RangeControl
+                id="room-ceiling-light-intensity"
+                label="천장 조명 세기"
+                value={props.ceilingLightIntensity}
+                min={0}
+                max={20}
+                step={0.1}
+                valueLabel={props.ceilingLightIntensity.toFixed(1)}
+                onChange={props.onCeilingLightIntensityChange}
+              />
+              <RangeControl
+                id="room-ceiling-light-temperature"
+                label="천장 조명 색온도"
+                value={props.ceilingLightTemperature}
+                min={1800}
+                max={10000}
+                step={100}
+                valueLabel={`${props.ceilingLightTemperature.toFixed(0)} K`}
+                onChange={props.onCeilingLightTemperatureChange}
               />
             </div>
             <button

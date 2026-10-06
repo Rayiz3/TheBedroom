@@ -20,6 +20,7 @@ import {
 } from '@/components/room/config';
 import { RoomEnvironment } from '@/components/room/environment';
 import { BlenderLighting } from '@/components/room/lighting';
+import { CeilingLamp } from '@/components/room/ceiling-lamp';
 import { RoomControlPanel } from '@/components/ui/room/room-control-panel';
 import { RoomStageOverlay } from '@/components/ui/room/room-stage-overlay';
 import { RoomViewerBoundary } from '@/components/ui/room/room-viewer-boundary';
@@ -105,6 +106,12 @@ export function RoomViewer({
     DEFAULT_LIGHTING.directionalElevation,
   );
   const [environmentSaveMessage, setEnvironmentSaveMessage] = useState('');
+  const [ceilingLightIntensity, setCeilingLightIntensity] = useState(
+    DEFAULT_LIGHTING.ceilingLightIntensity,
+  );
+  const [ceilingLightTemperature, setCeilingLightTemperature] = useState(
+    DEFAULT_LIGHTING.ceilingLightTemperature,
+  );
 
   const saveEnvironmentDefaults = async () => {
     try {
@@ -118,6 +125,8 @@ export function RoomViewer({
           directionalIntensity,
           directionalDirection,
           directionalElevation,
+          ceilingLightIntensity,
+          ceilingLightTemperature,
         }),
       });
       if (!response.ok) throw new Error('Save failed');
@@ -145,6 +154,8 @@ export function RoomViewer({
     directionalDirection,
     directionalElevation,
     showColliders,
+    ceilingLightIntensity,
+    ceilingLightTemperature,
   ]);
   const handleEnvironmentReady = useCallback(
     () => setEnvironmentReady(true),
@@ -232,6 +243,10 @@ export function RoomViewer({
                 directionalElevation={directionalElevation}
               />
               <StaticRoomArchitecture />
+              <CeilingLamp
+                intensity={ceilingLightIntensity}
+                temperature={ceilingLightTemperature}
+              />
               <RoomStool />
             </Suspense>
             <Suspense fallback={null}>
@@ -286,6 +301,14 @@ export function RoomViewer({
       ) : (
         <>
           <RoomControlPanel
+            ceilingLightIntensity={ceilingLightIntensity}
+            onCeilingLightIntensityChange={measureChange(
+              setCeilingLightIntensity,
+            )}
+            ceilingLightTemperature={ceilingLightTemperature}
+            onCeilingLightTemperatureChange={measureChange(
+              setCeilingLightTemperature,
+            )}
             onSaveEnvironmentDefaults={saveEnvironmentDefaults}
             environmentSaveMessage={environmentSaveMessage}
             showColliders={showColliders}
