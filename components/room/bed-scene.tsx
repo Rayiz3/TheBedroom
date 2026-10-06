@@ -26,7 +26,7 @@ import {
   DEFAULT_PILLOW_PALETTE,
   DUVET_ASSETS,
   PAD_MODEL_PATHS,
-  PILLOW_FABRIC_DATA_TEXTURE_PATHS,
+  FABRIC_DATA_TEXTURE_PATHS,
   PILLOW_FABRIC_PATCH_SIZE,
   PILLOW_MODEL_PATHS,
   PILLOW_CENTER_OFFSETS_Z,
@@ -84,8 +84,8 @@ export function BedScene({
   const pillowRotation = useMemo(() => new THREE.Quaternion(), []);
   const colliderDebug = useMemo(() => new THREE.Group(), []);
   const pillowGltf = useRoomModel(PILLOW_MODEL_PATHS[bedSize]);
-  const pillowDataSourceTextures = useLoader(THREE.TextureLoader, [
-    ...PILLOW_FABRIC_DATA_TEXTURE_PATHS,
+  const dataSourceTextures = useLoader(THREE.TextureLoader, [
+    ...FABRIC_DATA_TEXTURE_PATHS,
   ]);
   const { camera, gl, size: viewportSize } = useThree();
   const model = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
@@ -127,13 +127,13 @@ export function BedScene({
   );
   const pillowDataTextures = useMemo(
     () =>
-      pillowDataSourceTextures.map((source) =>
+      dataSourceTextures.map((source) =>
         cloneFabricTexture(source, pillowTextureRepeat, THREE.NoColorSpace),
       ),
-    [pillowDataSourceTextures, pillowTextureRepeat],
+    [dataSourceTextures, pillowTextureRepeat],
   );
   const pillowMaterial = useMemo(() => {
-    const [roughnessMap, normalMap, aoMap] = pillowDataTextures;
+    const [roughnessMap, normalMap, , aoMap] = pillowDataTextures;
     const material = new THREE.MeshPhysicalMaterial({
       map: pillowColorMaps[DEFAULT_PILLOW_PALETTE],
       roughness: DEFAULT_FABRIC_MATERIAL_SETTINGS.roughness,
@@ -176,16 +176,16 @@ export function BedScene({
   );
   const duvetDataTextures = useMemo(
     () =>
-      pillowDataSourceTextures.map((source) =>
+      dataSourceTextures.map((source) =>
         cloneFabricTexture(source, duvetTextureRepeat, THREE.NoColorSpace),
       ),
-    [pillowDataSourceTextures, duvetTextureRepeat],
+    [dataSourceTextures, duvetTextureRepeat],
   );
   const duvetMaterial = useMemo(() => {
     const material = pillowMaterial.clone();
     material.name = 'Duvet_Pillow_Fabric';
     material.map = duvetColorMaps[DEFAULT_PILLOW_PALETTE];
-    [material.roughnessMap, material.normalMap, material.aoMap] =
+    [material.roughnessMap, material.normalMap, , material.aoMap] =
       duvetDataTextures;
     enableStochasticFabricColor(material);
     return material;
@@ -217,16 +217,16 @@ export function BedScene({
   const padColorMaps = useDeferredFabricColorMaps(padTextureRepeat, palette);
   const padDataTextures = useMemo(
     () =>
-      pillowDataSourceTextures.map((source) =>
+      dataSourceTextures.map((source) =>
         cloneFabricTexture(source, padTextureRepeat, THREE.NoColorSpace),
       ),
-    [pillowDataSourceTextures, padTextureRepeat],
+    [dataSourceTextures, padTextureRepeat],
   );
   const padMaterial = useMemo(() => {
     const material = pillowMaterial.clone();
     material.name = 'Pad_Pillow_Fabric';
     material.map = padColorMaps[DEFAULT_PILLOW_PALETTE];
-    [material.roughnessMap, material.normalMap, material.aoMap] =
+    [material.roughnessMap, material.normalMap, , material.aoMap] =
       padDataTextures;
     enableStochasticFabricColor(material);
     return material;

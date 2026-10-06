@@ -9,7 +9,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import {
   DUVET_ASSETS,
   ROOM_MODEL_PATHS,
-  PILLOW_FABRIC_DATA_TEXTURE_PATHS,
+  FABRIC_DATA_TEXTURE_PATHS,
 } from './config';
 
 import { DEFAULT_FABRIC_COLOR_PATH } from './fabric-colors';
@@ -22,7 +22,7 @@ export function RoomAssetPreloader({ onReady }: { onReady: () => void }) {
     Object.values(DUVET_ASSETS).map((asset) => asset.binding),
   );
   const textures = useLoader(THREE.TextureLoader, [
-    ...PILLOW_FABRIC_DATA_TEXTURE_PATHS,
+    ...FABRIC_DATA_TEXTURE_PATHS,
   ]);
   const colors = useLoader(THREE.TextureLoader, DEFAULT_FABRIC_COLOR_PATH);
 

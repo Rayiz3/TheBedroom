@@ -1,0 +1,8 @@
+{
+  "hdriSource": "indoor",
+  "hdriIntensity": 1.5,
+  "ambientIntensity": 0.3,
+  "directionalIntensity": 2,
+  "directionalDirection": 18,
+  "directionalElevation": 23
+}

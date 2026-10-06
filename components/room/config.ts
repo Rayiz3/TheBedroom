@@ -36,7 +36,7 @@ export const PILLOW_CENTER_OFFSETS_Z = {
   queen: 0.3545665,
 } as const;
 
-export const PILLOW_FABRIC_DATA_TEXTURE_PATHS = [
+export const FABRIC_DATA_TEXTURE_PATHS = [
   '/textures/Spatially_bio_v3_2K/Spatially_bio_v3ao_2K_Roughness.png',
   '/textures/Spatially_bio_v3_2K/Spatially_bio_v3ao_2K_NormalGL.png',
   '/textures/Spatially_bio_v3_2K/Spatially_bio_v3ao_2K_Displacement.png',
@@ -71,7 +71,21 @@ export const FLOOR_MODEL_PATH = '/assets/floor.glb';
 export const WALL_MODEL_PATH = '/assets/wall.glb';
 export const WINDOW_MODEL_PATH = '/assets/window.glb';
 export const CEILING_MODEL_PATH = '/assets/ceiling.glb';
-export const ROOM_HDRI_PATH = '/DaySkyHDRI070B_4K/DaySkyHDRI070B_4K_HDR.exr';
+export const ROOM_BACKGROUND_PATH =
+  '/DaySkyHDRI070B_2K/DaySkyHDRI070B_2K_TONEMAPPED.jpg';
+export const ROOM_HDRI_OPTIONS = [
+  {
+    id: 'daysky',
+    label: 'DaySky',
+    path: '/DaySkyHDRI070B_2K/DaySkyHDRI070B_2K_HDR.exr',
+  },
+  {
+    id: 'indoor',
+    label: 'IndoorEnvironment',
+    path: '/IndoorEnvironmentHDRI001_4K/IndoorEnvironmentHDRI001_4K_HDR.exr',
+  },
+] as const;
+export type RoomHdri = (typeof ROOM_HDRI_OPTIONS)[number]['id'];
 
 export const ROOM_MODEL_PATHS = [
   ...Object.values(PAD_MODEL_PATHS),
@@ -89,7 +103,7 @@ export const ROOM_MODEL_PATHS = [
 ] as const;
 
 export const ROOM_TEXTURE_PATHS = [
-  ...PILLOW_FABRIC_DATA_TEXTURE_PATHS,
+  ...FABRIC_DATA_TEXTURE_PATHS,
   ...PILLOW_PALETTE.map(({ path }) => path),
 ] as const;
 
@@ -98,13 +112,7 @@ export const ROOM_ORIGIN = new THREE.Vector3(0, 0, 0);
 export const DIRECTIONAL_LIGHT_DISTANCE = 6.4;
 export const DIRECTIONAL_LIGHT_BASE_AZIMUTH = 36.87;
 
-export const DEFAULT_LIGHTING = {
-  hdriIntensity: 1,
-  ambientIntensity: 0.3,
-  directionalIntensity: 4,
-  directionalDirection: 0,
-  directionalElevation: 38.66,
-} as const;
+export { default as DEFAULT_LIGHTING } from './environment-defaults.json';
 
 export type LightingSettings = {
   ambientIntensity: number;

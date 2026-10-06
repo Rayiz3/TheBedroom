@@ -16,6 +16,7 @@ import {
   DEFAULT_PILLOW_PALETTE,
   type BedSize,
   type BeddingPalette,
+  type RoomHdri,
 } from '@/components/room/config';
 import { RoomEnvironment } from '@/components/room/environment';
 import { BlenderLighting } from '@/components/room/lighting';
@@ -69,6 +70,7 @@ export function RoomViewer({
     (value: T) => {
       timing.current.pending = performance.now();
       timing.current.committed = false;
+      setEnvironmentSaveMessage('');
       setter(value);
     };
   const [environmentReady, setEnvironmentReady] = useState(false);
@@ -84,6 +86,9 @@ export function RoomViewer({
     pillow2: DEFAULT_PILLOW_PALETTE,
     duvet: DEFAULT_PILLOW_PALETTE,
   });
+  const [hdriSource, setHdriSource] = useState<RoomHdri>(
+    DEFAULT_LIGHTING.hdriSource as RoomHdri,
+  );
   const [hdriIntensity, setHdriIntensity] = useState<number>(
     DEFAULT_LIGHTING.hdriIntensity,
   );
@@ -99,6 +104,30 @@ export function RoomViewer({
   const [directionalElevation, setDirectionalElevation] = useState<number>(
     DEFAULT_LIGHTING.directionalElevation,
   );
+  const [environmentSaveMessage, setEnvironmentSaveMessage] = useState('');
+
+  const saveEnvironmentDefaults = async () => {
+    try {
+      const response = await fetch('/api/room/environment-defaults', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hdriSource,
+          hdriIntensity,
+          ambientIntensity,
+          directionalIntensity,
+          directionalDirection,
+          directionalElevation,
+        }),
+      });
+      if (!response.ok) throw new Error('Save failed');
+      setEnvironmentSaveMessage('현재 값을 기본값 JSON에 저장했습니다.');
+    } catch {
+      setEnvironmentSaveMessage(
+        '저장하지 못했습니다. JSON 저장은 로컬 개발 서버에서 지원됩니다.',
+      );
+    }
+  };
 
   const modelPath = BED_MODEL_PATHS[bedSize];
   const ready = environmentReady && assetsReady && sceneReady;
@@ -109,6 +138,7 @@ export function RoomViewer({
     ready,
     bedSize,
     palette,
+    hdriSource,
     hdriIntensity,
     ambientIntensity,
     directionalIntensity,
@@ -178,13 +208,14 @@ export function RoomViewer({
             camera={{ position: [3, 2, 4], fov: 38, near: 0.05, far: 100 }}
             gl={{ antialias: true, alpha: false }}
             onCreated={({ gl }) => {
-              gl.toneMapping = THREE.AgXToneMapping;
-              gl.toneMappingExposure = 2 ** 0.85;
+              gl.toneMapping = THREE.ACESFilmicToneMapping;
+              gl.toneMappingExposure = 3.0;
               gl.outputColorSpace = THREE.SRGBColorSpace;
             }}
           >
             <Suspense fallback={null}>
               <RoomEnvironment
+                source={hdriSource}
                 intensity={hdriIntensity}
                 onReady={handleEnvironmentReady}
               />
@@ -255,11 +286,15 @@ export function RoomViewer({
       ) : (
         <>
           <RoomControlPanel
+            onSaveEnvironmentDefaults={saveEnvironmentDefaults}
+            environmentSaveMessage={environmentSaveMessage}
             showColliders={showColliders}
             onShowCollidersChange={measureChange(setShowColliders)}
             collapsed={panelCollapsed}
             onCollapsedChange={setPanelCollapsed}
             hdriIntensity={hdriIntensity}
+            hdriSource={hdriSource}
+            onHdriSourceChange={measureChange(setHdriSource)}
             onHdriIntensityChange={measureChange(setHdriIntensity)}
             ambientIntensity={ambientIntensity}
             onAmbientIntensityChange={measureChange(setAmbientIntensity)}

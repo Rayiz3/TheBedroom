@@ -4,6 +4,14 @@ import { PhysicsMetrics, SavePhysicsMeasurements } from './physics-metrics';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { ROOM_HDRI_OPTIONS, type RoomHdri } from '@/components/room/config';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 import styles from '../../room-viewer.module.css';
 
@@ -47,6 +55,10 @@ function RangeControl({
 }
 
 type RoomControlPanelProps = {
+  onSaveEnvironmentDefaults: () => void;
+  environmentSaveMessage: string;
+  hdriSource: RoomHdri;
+  onHdriSourceChange: (value: RoomHdri) => void;
   showColliders: boolean;
   onShowCollidersChange: (value: boolean) => void;
   collapsed: boolean;
@@ -100,6 +112,41 @@ export function RoomControlPanel(props: RoomControlPanelProps) {
           </section>
           <section className={styles.controlGroup}>
             <div className={styles.controlGroupTitle}>ENVIRONMENT</div>
+            <div className={styles.rangeControl}>
+              <label id="room-hdri-source-label" htmlFor="room-hdri-source">
+                HDRI 선택
+              </label>
+              <Select
+                value={props.hdriSource}
+                onValueChange={(value) => {
+                  const option = ROOM_HDRI_OPTIONS.find(
+                    (option) => option.id === value,
+                  );
+                  if (option) props.onHdriSourceChange(option.id);
+                }}
+              >
+                <SelectTrigger
+                  id="room-hdri-source"
+                  size="sm"
+                  aria-labelledby="room-hdri-source-label"
+                >
+                  <SelectValue>
+                    {
+                      ROOM_HDRI_OPTIONS.find(
+                        (option) => option.id === props.hdriSource,
+                      )?.label
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent alignItemWithTrigger={false}>
+                  {ROOM_HDRI_OPTIONS.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className={styles.rangeStack}>
               <RangeControl
                 id="room-hdri-intensity"
@@ -154,6 +201,16 @@ export function RoomControlPanel(props: RoomControlPanelProps) {
                 onChange={props.onDirectionalElevationChange}
               />
             </div>
+            <button
+              type="button"
+              className={styles.saveMeasurements}
+              onClick={props.onSaveEnvironmentDefaults}
+            >
+              기본값으로 설정
+            </button>
+            <output className={styles.metricNote} aria-live="polite">
+              {props.environmentSaveMessage}
+            </output>
           </section>
         </div>
       )}

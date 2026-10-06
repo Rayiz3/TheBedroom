@@ -21,6 +21,10 @@ vec2 fabricStochasticOffset( vec2 position ) {
 }
 
 vec3 sampleStochasticFabric( sampler2D sourceMap, vec2 sampleUv ) {
+  // Match Texture view's .grad(): derive mip level from continuous UVs,
+  // before applying the discontinuous random offsets.
+  vec2 gradientX = dFdx( sampleUv );
+  vec2 gradientY = dFdy( sampleUv );
   vec2 scaledUv = sampleUv * 3.46410162;
   vec2 skewedUv = vec2(
     scaledUv.x - scaledUv.y * 0.57735027,
@@ -41,9 +45,9 @@ vec3 sampleStochasticFabric( sampler2D sourceMap, vec2 sampleUv ) {
   vec2 vertex2 = baseCell + vec2( upperTriangle, 1.0 - upperTriangle );
   vec2 vertex3 = baseCell + vec2( 1.0 - upperTriangle, upperTriangle );
 
-  vec3 color1 = texture2D( sourceMap, sampleUv + fabricStochasticOffset( vertex1 ) ).rgb;
-  vec3 color2 = texture2D( sourceMap, sampleUv + fabricStochasticOffset( vertex2 ) ).rgb;
-  vec3 color3 = texture2D( sourceMap, sampleUv + fabricStochasticOffset( vertex3 ) ).rgb;
+  vec3 color1 = textureGrad( sourceMap, sampleUv + fabricStochasticOffset( vertex1 ), gradientX, gradientY ).rgb;
+  vec3 color2 = textureGrad( sourceMap, sampleUv + fabricStochasticOffset( vertex2 ), gradientX, gradientY ).rgb;
+  vec3 color3 = textureGrad( sourceMap, sampleUv + fabricStochasticOffset( vertex3 ), gradientX, gradientY ).rgb;
   vec3 luminance = vec3(
     dot( color1, vec3( 0.2126, 0.7152, 0.0722 ) ),
     dot( color2, vec3( 0.2126, 0.7152, 0.0722 ) ),
@@ -83,5 +87,5 @@ vec3 sampleStochasticFabric( sampler2D sourceMap, vec2 sampleUv ) {
       );
   };
   material.customProgramCacheKey = () =>
-    `${previousProgramCacheKey()}|stochastic-fabric-color-v1`;
+    `${previousProgramCacheKey()}|stochastic-fabric-color-grad-v2`;
 }

@@ -27,6 +27,7 @@ import {
 
 import styles from '../../material-viewer.module.css';
 import { TexturePicker } from './texture-picker';
+import { TexturePalette } from './texture-palette';
 
 function ControlRow({
   label,
@@ -204,6 +205,8 @@ function StochasticTilingControl({
 }
 
 type TextureControlPanelProps = {
+  colorSource: string;
+  onColorSourceChange: (value: string) => void;
   collapsed: boolean;
   onCollapsedChange: (value: boolean) => void;
   settings: ViewerSettings;
@@ -241,6 +244,10 @@ export function TextureControlPanel(props: TextureControlPanelProps) {
       </Button>
       {!props.collapsed && (
         <div className={styles.controlPanelBody}>
+          <TexturePalette
+            value={props.colorSource}
+            onChange={props.onColorSourceChange}
+          />
           <section className={styles.controlGroup}>
             <div className={styles.controlGroupTitle}>
               <span>ENVIRONMENT</span>

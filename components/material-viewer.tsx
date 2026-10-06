@@ -1,7 +1,8 @@
 'use client';
 
 import { Canvas } from '@react-three/fiber';
-import { Suspense, useCallback, useState } from 'react';
+import { Suspense, useCallback, useMemo, useState } from 'react';
+import { PILLOW_PALETTE } from './room/config';
 import textureBundles, { type TextureBundle } from 'virtual:texture-bundles';
 
 import {
@@ -17,7 +18,7 @@ import { TextureStageOverlay } from '@/components/ui/texture/texture-stage-overl
 import shellStyles from './viewer-shell.module.css';
 
 const DEFAULT_TEXTURE_BUNDLE =
-  textureBundles.find((bundle) => bundle.name === 'Spatially_bio_v2ao_2K') ??
+  textureBundles.find((bundle) => bundle.name === 'Spatially_bio_v3_2K') ??
   textureBundles[0];
 
 export function MaterialViewer() {
@@ -28,11 +29,19 @@ export function MaterialViewer() {
   const [duvetRepeatMode, setDuvetRepeatMode] =
     useState<DuvetRepeatMode>('physical');
   const [stochasticTiling, setStochasticTiling] = useState(true);
+  const [colorSource, setColorSource] = useState('bundle');
   const [duvetPhysicalRepeat, setDuvetPhysicalRepeat] =
     useState<readonly [number, number]>(DUVET_FACE_REPEAT);
   const [selectedBundle, setSelectedBundle] = useState<
     TextureBundle | undefined
   >(DEFAULT_TEXTURE_BUNDLE);
+  const texturePaths = useMemo(() => {
+    if (!selectedBundle) return [];
+    const palette = PILLOW_PALETTE.find((color) => color.id === colorSource);
+    return selectedBundle.paths.map((path, index) =>
+      index === 0 && palette ? palette.path : path,
+    );
+  }, [selectedBundle, colorSource]);
 
   const handleDuvetRepeatCalculated = useCallback(
     (repeat: readonly [number, number]) => {
@@ -54,6 +63,7 @@ export function MaterialViewer() {
     setSelectedBundle(DEFAULT_TEXTURE_BUNDLE);
     setDuvetRepeatMode('physical');
     setStochasticTiling(true);
+    setColorSource('bundle');
     setResetKey((key) => key + 1);
   };
   const selectTexture = (bundle: TextureBundle) => {
@@ -90,7 +100,7 @@ export function MaterialViewer() {
             {selectedBundle && (
               <RenderScene
                 settings={settings}
-                texturePaths={selectedBundle.paths}
+                texturePaths={texturePaths}
                 duvetRepeatMode={duvetRepeatMode}
                 stochasticTiling={stochasticTiling}
                 onDuvetRepeatCalculated={handleDuvetRepeatCalculated}
@@ -116,6 +126,11 @@ export function MaterialViewer() {
         onDuvetRepeatModeChange={setDuvetRepeatMode}
         selectedBundle={selectedBundle}
         onTextureSelect={selectTexture}
+        colorSource={colorSource}
+        onColorSourceChange={(value) => {
+          setReady(false);
+          setColorSource(value);
+        }}
       />
     </main>
   );
