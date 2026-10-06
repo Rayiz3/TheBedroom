@@ -26,7 +26,7 @@ export const DUVET_BINDING_NORMAL_SETTINGS = {
 };
 
 export const DUVET_PAD_IMPULSE_SETTINGS = {
-  velocityY: 5.0, // m/s: 중앙 정점에 추가할 위쪽 속도
+  velocityY: 7.0, // m/s: 중앙 정점에 추가할 위쪽 속도
   radius: 1.0, // m: 발치 중앙 주변의 영향 반경
   edgeInset: 0.02, // m: 발치 끝에서 안쪽으로 들어온 충격 중심
   maxVelocityY: 10.0, // 연속 선택 시 상승 속도 제한

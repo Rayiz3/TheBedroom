@@ -10,7 +10,55 @@ import { createDuvetConstraints } from './constraints';
 import { DuvetMeshBinding } from './mesh-binding';
 import { clampFrameDelta } from '../utils/time-step';
 
+export type DuvetClip = {
+  fps: number;
+  vertices: number;
+  frames: number;
+  positions: Float32Array;
+};
 export class DuvetPhysics {
+  // Render every frame; interpolate a one-second recording over two seconds.
+  readonly playbackRate = 0.5;
+  private get playbackDuration() {
+    return (this.clip!.frames - 1) / this.clip!.fps / this.playbackRate;
+  }
+  private playback = false;
+  private readonly playbackOrigin: THREE.Vector3;
+  get mode() {
+    return this.playback ? 'baked' : 'live';
+  }
+  useLiveSimulation() {
+    if (!this.playback) return;
+    this.playback = false;
+    this.elapsed = 0;
+    this.accumulator = 0;
+    this.constraints.forEach((c) => {
+      c.lambda = 0;
+    });
+  }
+  private sampleClip(time: number, target: THREE.Vector3[]) {
+    const clip = this.clip!;
+    const frame = Math.min(time * clip.fps, clip.frames - 1);
+    const lower = Math.floor(frame),
+      upper = Math.min(lower + 1, clip.frames - 1);
+    const alpha = frame - lower,
+      stride = clip.vertices * 3;
+    for (let i = 0; i < target.length; i++) {
+      const a = lower * stride + i * 3,
+        b = upper * stride + i * 3;
+      target[i].set(
+        this.playbackOrigin.x +
+          clip.positions[a] +
+          (clip.positions[b] - clip.positions[a]) * alpha,
+        this.playbackOrigin.y +
+          clip.positions[a + 1] +
+          (clip.positions[b + 1] - clip.positions[a + 1]) * alpha,
+        this.playbackOrigin.z +
+          clip.positions[a + 2] +
+          (clip.positions[b + 2] - clip.positions[a + 2]) * alpha,
+      );
+    }
+  }
   readonly timings = { solverMs: 0, meshMs: 0, normalsMs: 0 };
   readonly timeStep: number = 1 / 60;
   // Boundary and its first neighboring ring are free of artificial smoothing
@@ -42,7 +90,9 @@ export class DuvetPhysics {
     public data: DuvetBinding,
     public surface: BedSurface,
     offset: THREE.Vector3,
+    private readonly clip?: DuvetClip,
   ) {
+    this.playbackOrigin = offset.clone();
     this.positions = data.proxyPositions.map((p) =>
       new THREE.Vector3(...(p as [number, number, number])).add(offset),
     );
@@ -68,6 +118,16 @@ export class DuvetPhysics {
     mesh.quaternion.identity();
     mesh.scale.setScalar(1);
     mesh.frustumCulled = false;
+    if (clip) {
+      if (
+        clip.vertices !== this.positions.length ||
+        clip.positions.length !== clip.vertices * clip.frames * 3
+      )
+        throw new Error('Invalid baked duvet clip');
+      this.playback = true;
+      this.sampleClip(0, this.positions);
+      this.sampleClip(0, this.previous);
+    }
     this.updateMesh();
   }
   createWireframe() {
@@ -114,10 +174,13 @@ export class DuvetPhysics {
     this.debugWireframe.geometry.computeBoundingSphere();
   }
   get finished() {
-    return this.elapsed > DUVET_DRAPE_SETTINGS.simulationSeconds;
+    return this.playback
+      ? this.elapsed >= this.playbackDuration
+      : this.elapsed > DUVET_DRAPE_SETTINGS.simulationSeconds;
   }
 
   applyFootCenterImpulse() {
+    this.useLiveSimulation();
     const bounds = new THREE.Box3().setFromPoints(this.rest);
     // Bed head is on -X; locate the foot patch using undeformed coordinates
     // so the same fabric region is targeted even after it drapes down.
@@ -146,7 +209,8 @@ export class DuvetPhysics {
     this.accumulator = 0;
   }
 
-  reset() {
+  reset(deferMeshUpdate = false) {
+    this.playback = Boolean(this.clip);
     this.positions.forEach((point, index) => {
       point.copy(this.rest[index]);
       this.previous[index].copy(this.rest[index]);
@@ -156,7 +220,8 @@ export class DuvetPhysics {
     this.constraints.forEach((constraint) => {
       constraint.lambda = 0;
     });
-    this.updateMesh();
+    // UI restart defers expensive deformation/normals to the next render frame.
+    if (!deferMeshUpdate) this.updateMesh();
   }
 
   step(delta: number) {
@@ -164,6 +229,23 @@ export class DuvetPhysics {
     this.timings.meshMs = 0;
     this.timings.normalsMs = 0;
     if (this.finished) return;
+    if (this.playback) {
+      const started = performance.now();
+      this.elapsed = Math.min(
+        this.elapsed + Math.max(0, delta),
+        this.playbackDuration,
+      );
+      if (this.playbackDuration - this.elapsed < 1e-9)
+        this.elapsed = this.playbackDuration;
+      this.sampleClip(this.elapsed * this.playbackRate, this.positions);
+      this.sampleClip(
+        Math.max(0, this.elapsed - this.timeStep) * this.playbackRate,
+        this.previous,
+      );
+      this.timings.solverMs = performance.now() - started;
+      this.updateMesh();
+      return;
+    }
     const solverStarted = performance.now();
     const velocityRetention = 1 - DUVET_DRAPE_SETTINGS.velocityDamping;
     const smoothing = DUVET_DRAPE_SETTINGS.surfaceSmoothing;

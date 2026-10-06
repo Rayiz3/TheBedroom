@@ -63,7 +63,7 @@ export function useDeferredFabricColorMaps(
           if (id === DEFAULT_PILLOW_PALETTE) continue;
           void loadColor(path)
             .then((texture) => {
-              if (cancelled) return;
+              if (cancelled || maps[id].image === texture.image) return;
               maps[id].image = texture.image;
               maps[id].needsUpdate = true;
             })

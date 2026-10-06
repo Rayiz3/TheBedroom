@@ -4,7 +4,7 @@
 
 import { useFrame, useLoader, useThree } from '@react-three/fiber';
 import { roomPerformance } from './performance';
-import { PillowPhysics } from './physics/pillow/pillow-physics';
+import { BakedPillowPlayback } from './physics/pillow/baked-playback';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls as OrbitControlsImpl } from 'three/addons/controls/OrbitControls.js';
@@ -12,6 +12,7 @@ import { useRoomModel, useRoomBinding } from './room-assets';
 import { createBedCollisionProxies } from './collision-proxies';
 import { BedSurface } from './physics/collision/bed-surface';
 import { DuvetPhysics } from './physics/duvet/duvet-physics';
+import { getBakedDuvetClip } from './physics/duvet/baked-clips';
 import type { DuvetBinding } from './physics/duvet/types';
 
 import {
@@ -74,7 +75,7 @@ export function BedScene({
   }, [duvetGltf.scene, duvetAsset]);
   const duvetPhysics = useRef<DuvetPhysics | null>(null);
   const previousPalette = useRef(palette);
-  const pillowPhysics = useRef<PillowPhysics | null>(null);
+  const pillowPhysics = useRef<BakedPillowPlayback | null>(null);
   const pillowPoses = useRef(
     [0, 1].map(() => ({
       base: new THREE.Vector3(),
@@ -369,7 +370,7 @@ export function BedScene({
       bedSize,
       placedPadBounds,
     );
-    pillowPhysics.current = new PillowPhysics();
+    pillowPhysics.current = new BakedPillowPlayback();
     const surface = new BedSurface([collisionProxies.root]);
     const colliderLines = surface.solids.map((surface) =>
       surface.createWireframe(),
@@ -404,6 +405,7 @@ export function BedScene({
       duvetBinding,
       surface,
       dubetPosOffset,
+      getBakedDuvetClip(bedSize),
     );
     roomPerformance.beginSimulation();
     colliderLines.push(duvetPhysics.current.createWireframe());
@@ -444,7 +446,6 @@ export function BedScene({
 
     return () => {
       duvetPhysics.current = null;
-      pillowPhysics.current?.dispose();
       pillowPhysics.current = null;
       colliderLines.forEach((lines) => {
         colliderDebug.remove(lines);
@@ -487,11 +488,14 @@ export function BedScene({
     const parts = ['pillow1', 'pillow2'] as const;
     parts.forEach((part, index) => {
       pillowMaterials[index].map = pillowColorMaps[palette[part]];
-      if (previousPalette.current[part] !== palette[part])
-        pillowPhysics.current?.applyImpulse(index);
+      if (previousPalette.current[part] !== palette[part]) {
+        duvetPhysics.current?.useLiveSimulation();
+        pillowPhysics.current?.play(index);
+        roomPerformance.beginSimulation();
+      }
     });
     if (previousPalette.current.duvet !== palette.duvet) {
-      duvetPhysics.current?.reset();
+      duvetPhysics.current?.reset(true);
       roomPerformance.beginSimulation();
     } else if (previousPalette.current.pad !== palette.pad) {
       duvetPhysics.current?.applyFootCenterImpulse();
@@ -557,7 +561,7 @@ export function BedScene({
     const physicsElapsed = (duvetPhysics.current?.elapsed ?? before) - before;
     const cpuMs = performance.now() - started;
     roomPerformance.recordFrame(
-      `${bedSize}/${palette.pillow1}/${palette.pillow2}/${palette.duvet}/pad=${palette.pad}/colliders=${showColliders}/physicsHz=60`,
+      `${bedSize}/${palette.pillow1}/${palette.pillow2}/${palette.duvet}/pad=${palette.pad}/colliders=${showColliders}/physicsHz=60/duvetMode=${duvetPhysics.current?.mode}`,
       delta,
       physicsElapsed,
       cpuMs,

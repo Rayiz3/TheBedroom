@@ -24,10 +24,10 @@ export class PillowPhysics {
     this.bodies = createPillowBodies(this.world);
   }
 
-  applyImpulse(index: number) {
+  applyImpulse(index: number, offset = samplePillowImpulseOffset()) {
     const body = this.bodies[index];
     const center = body.worldCom();
-    const offset = samplePillowImpulseOffset();
+
     // Positions are in the physics world's coordinates, relative to the
     // pillow's resting pose. Existing translation/rotation locks are retained.
     body.applyImpulseAtPoint(
