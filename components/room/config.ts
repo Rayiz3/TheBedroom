@@ -73,6 +73,7 @@ export const OBJECTS1_MODEL_PATH = '/assets/objects1.glb';
 export const LAMP_MODEL_PATH = '/assets/lamp.glb';
 export const CEILING_LAMP_MODEL_PATH = '/assets/lamp_ceiling.glb';
 export const STOOL_MODEL_PATH = '/assets/stool.glb';
+export const VASE_MODEL_PATH = '/assets/vase.glb';
 export const FLOOR_MODEL_PATH = '/assets/floor.glb';
 export const WALL_MODEL_PATH = '/assets/wall.glb';
 export const WALL_DOOR_MODEL_PATH = '/assets/wall_door.glb';
@@ -104,6 +105,7 @@ export const ROOM_MODEL_PATHS = [
   LAMP_MODEL_PATH,
   CEILING_LAMP_MODEL_PATH,
   STOOL_MODEL_PATH,
+  VASE_MODEL_PATH,
   FLOOR_MODEL_PATH,
   WALL_MODEL_PATH,
   WALL_DOOR_MODEL_PATH,

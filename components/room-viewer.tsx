@@ -31,7 +31,7 @@ import shellStyles from './viewer-shell.module.css';
 import { ConfiguratorPanel } from './ui/configurator/configurator-panel';
 import configuratorStyles from './ui/configurator/configurator.module.css';
 import Link from 'next/link';
-import { ArrowLeft, Move } from 'lucide-react';
+import { Move } from 'lucide-react';
 
 export function RoomViewer({
   variant = 'room',
@@ -203,19 +203,13 @@ export function RoomViewer({
       }
     >
       {isConfigurator && (
-        <header className={configuratorStyles.header}>
-          <Link
-            href="/"
-            className={configuratorStyles.brand}
-            aria-label="Spatially 홈"
-          >
-            Spatially
-          </Link>
-          <span className={configuratorStyles.headerTitle}>침실 꾸미기</span>
-          <Link href="/" className={configuratorStyles.back}>
-            <ArrowLeft size={16} /> 돌아가기
-          </Link>
-        </header>
+        <Link
+          href="/"
+          className={configuratorStyles.brand}
+          aria-label="Spatially 홈"
+        >
+          Spatially
+        </Link>
       )}
       <section
         className={

@@ -5,6 +5,7 @@
 import { useFrame, useLoader, useThree } from '@react-three/fiber';
 import { roomPerformance } from './performance';
 import { BakedPillowPlayback } from './physics/pillow/baked-playback';
+import { placePillow } from './pillow-placement';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls as OrbitControlsImpl } from 'three/addons/controls/OrbitControls.js';
@@ -348,17 +349,10 @@ export function BedScene({
     );
 
     pillows.forEach((pillow, index) => {
-      pillow.position.copy(bedOffset).add(beddingOffset);
-      pillow.quaternion.identity();
-      // Align actual geometry centers, not GLB origins (which can be off-center).
-      pillow.updateMatrixWorld(true);
-      const authoredPillowCenter = new THREE.Box3()
-        .setFromObject(pillow, true)
-        .getCenter(new THREE.Vector3());
       const targetZ =
         supportCenter.z +
         (index === 0 ? 1 : -1) * PILLOW_CENTER_OFFSETS_Z[bedSize];
-      pillow.position.z += targetZ - authoredPillowCenter.z;
+      placePillow(pillow, supportBounds, placedPadBounds, targetZ);
       pillow.name = `Pillow_${index + 1}`;
       pillowPoses.current[index].base.copy(pillow.position);
       pillow.traverse((object) => {

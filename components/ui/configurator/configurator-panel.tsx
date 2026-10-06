@@ -1,6 +1,7 @@
 'use client';
 
-import { Check, Sun } from 'lucide-react';
+import { useState } from 'react';
+import { Check, ChevronDown, Sun } from 'lucide-react';
 import {
   BEDDING_PALETTE,
   type BedSize,
@@ -51,6 +52,7 @@ export function ConfiguratorPanel({
   sunlight: number;
   onSunlightChange: (value: number) => void;
 }) {
+  const [openPalette, setOpenPalette] = useState<string | null>(null);
   const uniformColor = Object.values(palette).every(
     (color) => color === palette.duvet,
   )
@@ -72,13 +74,6 @@ export function ConfiguratorPanel({
   ];
   return (
     <aside className={styles.panel} aria-label="침실 구성">
-      <div className={styles.intro}>
-        <h1>
-          Change <br />
-          Your Space.
-        </h1>
-        <p>좋아하는 색으로, 나다운 침실.</p>
-      </div>
       <fieldset className={styles.sizeField}>
         <legend>침대 사이즈</legend>
         <div className={styles.sizes}>
@@ -107,14 +102,29 @@ export function ConfiguratorPanel({
       </fieldset>
       <div className={styles.colors}>
         {groups.map((part) => (
-          <fieldset key={part.id} className={styles.colorField}>
-            <legend>
+          <div key={part.id} className={styles.colorField}>
+            <button
+              type="button"
+              className={styles.paletteToggle}
+              aria-expanded={openPalette === part.id}
+              aria-controls={`palette-${part.id}`}
+              onClick={() =>
+                setOpenPalette(openPalette === part.id ? null : part.id)
+              }
+            >
               <span>{part.label}</span>
               <span className={styles.colorName}>
                 {part.color === null ? '혼합' : COLOR_NAMES[part.color]}
               </span>
-            </legend>
-            <div className={styles.swatches}>
+              <ChevronDown size={16} aria-hidden="true" />
+            </button>
+            <div
+              id={`palette-${part.id}`}
+              className={styles.swatches}
+              hidden={openPalette !== part.id}
+              role="radiogroup"
+              aria-label={`${part.label} 색상`}
+            >
               {COLOR_ORDER.map((id) => {
                 const color = BEDDING_PALETTE.find((color) => color.id === id)!;
                 return (
@@ -149,7 +159,7 @@ export function ConfiguratorPanel({
                 );
               })}
             </div>
-          </fieldset>
+          </div>
         ))}
       </div>
       <section className={styles.sunlight} aria-labelledby="sunlight-label">

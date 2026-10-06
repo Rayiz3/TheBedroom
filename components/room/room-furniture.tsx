@@ -4,6 +4,7 @@ import { useMemo, useLayoutEffect, useState, useEffect } from 'react';
 import { useThree, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useRoomModel } from './room-assets';
+import { placeStoolAndVase } from './stool-placement';
 import { RoomLampPointLight } from './lighting/point-light';
 import { LAMP_POINT_SETTINGS } from './lighting/lamp-point-settings';
 import { lampPointPosition } from './lighting/utils';
@@ -13,6 +14,7 @@ import {
   OBJECTS1_MODEL_PATH,
   LAMP_MODEL_PATH,
   STOOL_MODEL_PATH,
+  VASE_MODEL_PATH,
   STOOL_POSITION,
   BED_FLOOR_Y,
   type BedSize,
@@ -141,24 +143,24 @@ export function RoomFurniture({ bedSize }: { bedSize: BedSize }) {
 }
 export function RoomStool() {
   const gltf = useRoomModel(STOOL_MODEL_PATH);
-  const stool = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
-  useLayoutEffect(() => {
-    stool.position.set(0, 0, 0);
-    stool.updateMatrixWorld(true);
-    const stoolBounds = new THREE.Box3().setFromObject(stool);
-    const stoolCenter = stoolBounds.getCenter(new THREE.Vector3());
-    stool.position.set(
-      STOOL_POSITION.x - stoolCenter.x,
-      STOOL_POSITION.y - stoolBounds.min.y,
-      STOOL_POSITION.z - stoolCenter.z,
-    );
+  const vaseGltf = useRoomModel(VASE_MODEL_PATH);
+  const { stool, vase } = useMemo(() => {
+    const stool = gltf.scene.clone(true);
+    const vase = vaseGltf.scene.clone(true);
+    placeStoolAndVase(stool, vase, STOOL_POSITION);
     stool.name = 'Stool';
-    stool.traverse((object) => {
-      if (!(object instanceof THREE.Mesh)) return;
-      object.castShadow = true;
-      object.receiveShadow = true;
-    });
-    stool.updateMatrixWorld(true);
-  }, [stool]);
-  return <primitive object={stool} />;
+    vase.name = 'Vase';
+    for (const model of [stool, vase])
+      model.traverse((object) => {
+        if (!(object instanceof THREE.Mesh)) return;
+        object.castShadow = true;
+        object.receiveShadow = true;
+      });
+    return { stool, vase };
+  }, [gltf.scene, vaseGltf.scene]);
+  return (
+    <primitive object={stool}>
+      <primitive object={vase} />
+    </primitive>
+  );
 }
