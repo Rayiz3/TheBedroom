@@ -1,10 +1,10 @@
 {
   "hdriSource": "indoor",
   "hdriIntensity": 1,
-  "ambientIntensity": 0.2,
+  "ambientIntensity": 0.15,
   "directionalIntensity": 2,
-  "directionalDirection": -21,
-  "directionalElevation": 21,
-  "ceilingLightIntensity": 6,
+  "directionalDirection": -19,
+  "directionalElevation": 23,
+  "ceilingLightIntensity": 5.3,
   "ceilingLightTemperature": 5000
 }

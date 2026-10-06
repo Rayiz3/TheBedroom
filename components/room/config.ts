@@ -53,13 +53,18 @@ export const PILLOW_PALETTE = [
 ] as const;
 
 export type BeddingPalette = {
-  pad: Palette;
-  pillow1: Palette;
-  pillow2: Palette;
-  duvet: Palette;
+  pad: BeddingColor;
+  pillow1: BeddingColor;
+  pillow2: BeddingColor;
+  duvet: BeddingColor;
 };
 
 export type Palette = (typeof PILLOW_PALETTE)[number]['id'];
+export type BeddingColor = Palette | 'none';
+export const BEDDING_PALETTE = [
+  ...PILLOW_PALETTE,
+  { id: 'none', label: '없음', path: null },
+] as const;
 
 export const DEFAULT_PILLOW_PALETTE: Palette = 'lilac';
 export const PILLOW_FABRIC_PATCH_SIZE = 0.09;

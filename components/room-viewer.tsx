@@ -80,6 +80,7 @@ export function RoomViewer({
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [showColliders, setShowColliders] = useState(false);
   const [bedSize, setBedSize] = useState<BedSize>('queen');
+  const [bulkPaletteRevision, setBulkPaletteRevision] = useState(0);
   const [palette, setpalette] = useState<BeddingPalette>({
     pad: DEFAULT_PILLOW_PALETTE,
     pillow1: DEFAULT_PILLOW_PALETTE,
@@ -268,6 +269,7 @@ export function RoomViewer({
                   bedSize={bedSize}
                   modelPath={modelPath}
                   palette={palette}
+                  bulkPaletteRevision={bulkPaletteRevision}
                   showColliders={showColliders}
                   onReady={handleSceneReady}
                 />
@@ -350,6 +352,15 @@ export function RoomViewer({
             onBedSizeChange={measureChange(handleBedSizeChange)}
             palette={palette}
             onPaletteChange={measureChange(setpalette)}
+            onBulkPaletteChange={measureChange((color) => {
+              setpalette({
+                duvet: color,
+                pad: color,
+                pillow1: color,
+                pillow2: color,
+              });
+              setBulkPaletteRevision((revision) => revision + 1);
+            })}
           />
           <ViewerNavigation currentView="Room View" />
         </>

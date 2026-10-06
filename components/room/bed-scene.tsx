@@ -42,12 +42,14 @@ export function BedScene({
   bedSize,
   modelPath,
   palette,
+  bulkPaletteRevision = 0,
   showColliders,
   onReady,
 }: {
   bedSize: BedSize;
   modelPath: string;
   palette: BeddingPalette;
+  bulkPaletteRevision?: number;
   showColliders: boolean;
   onReady: () => void;
 }) {
@@ -75,6 +77,7 @@ export function BedScene({
   }, [duvetGltf.scene, duvetAsset]);
   const duvetPhysics = useRef<DuvetPhysics | null>(null);
   const previousPalette = useRef(palette);
+  const previousBulkRevision = useRef(bulkPaletteRevision);
   const pillowPhysics = useRef<BakedPillowPlayback | null>(null);
   const pillowPoses = useRef(
     [0, 1].map(() => ({
@@ -193,7 +196,10 @@ export function BedScene({
   }, [pillowMaterial, duvetColorMaps, duvetDataTextures]);
   useLayoutEffect(() => {
     duvet.material = duvetMaterial;
-    duvetMaterial.map = duvetColorMaps[palette.duvet];
+    duvetMaterial.map =
+      duvetColorMaps[
+        palette.duvet === 'none' ? DEFAULT_PILLOW_PALETTE : palette.duvet
+      ];
   }, [duvet, duvetMaterial, duvetColorMaps, palette]);
   useEffect(() => () => duvetMaterial.dispose(), [duvetMaterial]);
   useEffect(
@@ -239,7 +245,10 @@ export function BedScene({
       object.castShadow = true;
       object.receiveShadow = true;
     });
-    padMaterial.map = padColorMaps[palette.pad];
+    padMaterial.map =
+      padColorMaps[
+        palette.pad === 'none' ? DEFAULT_PILLOW_PALETTE : palette.pad
+      ];
   }, [pad, padMaterial, padColorMaps, palette]);
   useEffect(() => () => padMaterial.dispose(), [padMaterial]);
   useEffect(
@@ -486,8 +495,34 @@ export function BedScene({
 
   useLayoutEffect(() => {
     const parts = ['pillow1', 'pillow2'] as const;
+    const bulkChange = previousBulkRevision.current !== bulkPaletteRevision;
+    previousBulkRevision.current = bulkPaletteRevision;
     parts.forEach((part, index) => {
-      pillowMaterials[index].map = pillowColorMaps[palette[part]];
+      const color = palette[part];
+      const material = pillowMaterials[index];
+      const map = color === 'none' ? null : pillowColorMaps[color];
+      if (Boolean(material.map) !== Boolean(map)) material.needsUpdate = true;
+      material.map = map;
+      material.color.set(0xffffff);
+    });
+    if (bulkChange) {
+      previousPalette.current = palette;
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      duvetPhysics.current?.reset(true);
+      roomPerformance.beginSimulation();
+      const timers = parts.map((_, index) =>
+        window.setTimeout(
+          () => {
+            duvetPhysics.current?.useLiveSimulation();
+            pillowPhysics.current?.play(index);
+            roomPerformance.beginSimulation();
+          },
+          (index + 1) * 300,
+        ),
+      );
+      return () => timers.forEach(window.clearTimeout);
+    }
+    parts.forEach((part, index) => {
       if (previousPalette.current[part] !== palette[part]) {
         duvetPhysics.current?.useLiveSimulation();
         pillowPhysics.current?.play(index);
@@ -502,7 +537,7 @@ export function BedScene({
       roomPerformance.beginSimulation();
     }
     previousPalette.current = palette;
-  }, [pillowColorMaps, pillowMaterials, palette]);
+  }, [pillowColorMaps, pillowMaterials, palette, bulkPaletteRevision, bedSize]);
 
   useEffect(
     () => () => {
@@ -589,8 +624,8 @@ export function BedScene({
     <group name="Bedroom_Furniture">
       <primitive object={colliderDebug} visible={showColliders} />
       <primitive object={model} />
-      <primitive object={duvet} />
-      <primitive object={pad} />
+      <primitive object={duvet} visible={palette.duvet !== 'none'} />
+      <primitive object={pad} visible={palette.pad !== 'none'} />
       <primitive object={pillows[0]} />
       <primitive object={pillows[1]} />
     </group>

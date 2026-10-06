@@ -5,11 +5,13 @@ import {
   PILLOW_PALETTE,
   type BedSize,
   type BeddingPalette,
+  type BeddingColor,
   type Palette,
 } from '@/components/room/config';
 import styles from './configurator.module.css';
 
-const COLOR_NAMES: Record<Palette, string> = {
+const COLOR_NAMES: Record<BeddingColor, string> = {
+  none: '없음',
   ivory: '밀키 아이보리',
   sage: '뮤트 세이지',
   lilac: '더스트 라일락',
@@ -88,7 +90,9 @@ export function ConfiguratorPanel({
             <legend>
               <span>{part.label}</span>
               <span className={styles.colorName}>
-                {COLOR_NAMES[palette[part.id]]}
+                {palette[part.id] === 'none'
+                  ? '없음'
+                  : COLOR_NAMES[palette[part.id]]}
               </span>
             </legend>
             <div className={styles.swatches}>

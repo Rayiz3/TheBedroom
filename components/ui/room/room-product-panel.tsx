@@ -1,8 +1,9 @@
 'use client';
 import {
-  PILLOW_PALETTE,
+  BEDDING_PALETTE,
   type BedSize,
   type BeddingPalette,
+  type BeddingColor,
 } from '@/components/room/config';
 import {
   Select,
@@ -19,7 +20,13 @@ export function RoomProductPanel(props: {
   onBedSizeChange: (value: BedSize) => void;
   palette: BeddingPalette;
   onPaletteChange: (value: BeddingPalette) => void;
+  onBulkPaletteChange: (value: BeddingColor) => void;
 }) {
+  const uniformColor = Object.values(props.palette).every(
+    (color) => color === props.palette.duvet,
+  )
+    ? props.palette.duvet
+    : null;
   return (
     <aside
       className={`${styles.controlPanel} ${styles.leftPanel}`}
@@ -63,13 +70,52 @@ export function RoomProductPanel(props: {
 
         <section className={styles.controlGroup}>
           <div className={styles.controlGroupTitle}>PALETTE</div>
+          <fieldset className={styles.paletteField}>
+            <legend>
+              일괄 변경 ·{' '}
+              {BEDDING_PALETTE.find((color) => color.id === uniformColor)
+                ?.label ?? '혼합'}
+            </legend>
+            <div
+              className={styles.paletteGrid}
+              role="radiogroup"
+              aria-label="전체 아이템 색상"
+            >
+              {BEDDING_PALETTE.map(({ id, label, path }) => (
+                <label
+                  key={id}
+                  title={label}
+                  className={`${styles.paletteOption} ${uniformColor === id ? styles.selected : ''}`}
+                >
+                  <input
+                    className={styles.paletteInput}
+                    type="radio"
+                    name="all-palette"
+                    aria-label={`전체 ${label}`}
+                    value={id}
+                    checked={uniformColor === id}
+                    onChange={() => props.onBulkPaletteChange(id)}
+                  />
+                  <span
+                    className={styles.paletteSwatch}
+                    style={
+                      path ? { backgroundImage: `url(${path})` } : undefined
+                    }
+                    aria-hidden="true"
+                  >
+                    {id === 'none' ? '없음' : null}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
           {(['pillow1', 'pillow2', 'duvet', 'pad'] as const).map(
             (part, index) => (
               <fieldset key={part} className={styles.paletteField}>
                 <legend>
                   {['베개 1', '베개 2', '이불', '패드'][index]} ·{' '}
                   {
-                    PILLOW_PALETTE.find(
+                    BEDDING_PALETTE.find(
                       (color) => color.id === props.palette[part],
                     )?.label
                   }
@@ -79,7 +125,7 @@ export function RoomProductPanel(props: {
                   role="radiogroup"
                   aria-label={`${part} 색상`}
                 >
-                  {PILLOW_PALETTE.map(({ id, label, path }) => (
+                  {BEDDING_PALETTE.map(({ id, label, path }) => (
                     <label
                       key={id}
                       title={label}
@@ -101,9 +147,13 @@ export function RoomProductPanel(props: {
                       />
                       <span
                         className={styles.paletteSwatch}
-                        style={{ backgroundImage: `url(${path})` }}
+                        style={
+                          path ? { backgroundImage: `url(${path})` } : undefined
+                        }
                         aria-hidden="true"
-                      />
+                      >
+                        {id === 'none' ? '없음' : null}
+                      </span>
                     </label>
                   ))}
                 </div>
