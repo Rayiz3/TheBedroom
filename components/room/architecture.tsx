@@ -18,6 +18,8 @@ import {
   CEILING_POSITION,
   FLOOR_MODEL_PATH,
   WALL_MODEL_PATH,
+  WALL_DOOR_MODEL_PATH,
+  WALL_DOOR_SOURCE_OFFSET,
   WALL_PLACEMENTS,
   WALL_SOURCE_OFFSET,
   WINDOW_INWARD_NORMAL,
@@ -42,6 +44,7 @@ function cloneRoomModel(source: THREE.Group) {
 function RoomArchitecture() {
   const floorGltf = useRoomModel(FLOOR_MODEL_PATH);
   const wallGltf = useRoomModel(WALL_MODEL_PATH);
+  const doorWallGltf = useRoomModel(WALL_DOOR_MODEL_PATH);
   const ceilingGltf = useRoomModel(CEILING_MODEL_PATH);
   const windowGltf = useRoomModel(WINDOW_MODEL_PATH);
   const { camera } = useThree();
@@ -50,8 +53,13 @@ function RoomArchitecture() {
     [floorGltf.scene],
   );
   const walls = useMemo(
-    () => WALL_PLACEMENTS.map(() => cloneRoomModel(wallGltf.scene)),
-    [wallGltf.scene],
+    () =>
+      WALL_PLACEMENTS.map((placement) =>
+        cloneRoomModel(
+          placement.name === 'Wall_South' ? doorWallGltf.scene : wallGltf.scene,
+        ),
+      ),
+    [wallGltf.scene, doorWallGltf.scene],
   );
   const ceiling = useMemo(
     () => cloneRoomModel(ceilingGltf.scene),
@@ -141,7 +149,14 @@ function RoomArchitecture() {
           position={placement.position}
           rotation-y={placement.rotationY}
         >
-          <primitive object={walls[index]} position={WALL_SOURCE_OFFSET} />
+          <primitive
+            object={walls[index]}
+            position={
+              placement.name === 'Wall_South'
+                ? WALL_DOOR_SOURCE_OFFSET
+                : WALL_SOURCE_OFFSET
+            }
+          />
         </group>
       ))}
     </group>

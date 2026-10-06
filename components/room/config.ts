@@ -70,6 +70,7 @@ export const CEILING_LAMP_MODEL_PATH = '/assets/lamp_ceiling.glb';
 export const STOOL_MODEL_PATH = '/assets/stool.glb';
 export const FLOOR_MODEL_PATH = '/assets/floor.glb';
 export const WALL_MODEL_PATH = '/assets/wall.glb';
+export const WALL_DOOR_MODEL_PATH = '/assets/wall_door.glb';
 export const WINDOW_MODEL_PATH = '/assets/window.glb';
 export const CEILING_MODEL_PATH = '/assets/ceiling.glb';
 export const ROOM_BACKGROUND_PATH =
@@ -100,6 +101,7 @@ export const ROOM_MODEL_PATHS = [
   STOOL_MODEL_PATH,
   FLOOR_MODEL_PATH,
   WALL_MODEL_PATH,
+  WALL_DOOR_MODEL_PATH,
   WINDOW_MODEL_PATH,
   CEILING_MODEL_PATH,
 ] as const;
@@ -125,6 +127,7 @@ export type LightingSettings = {
 
 export const WALL_SOURCE_CENTER = new THREE.Vector3(-2.34, 1.4, 0);
 export const WALL_SOURCE_OFFSET = WALL_SOURCE_CENTER.clone().multiplyScalar(-1);
+export const WALL_DOOR_SOURCE_OFFSET = new THREE.Vector3(0, -1.4, -2.34);
 export const CEILING_POSITION = new THREE.Vector3(0, -0.8, 0);
 export const CEILING_CENTER = new THREE.Vector3(0, 2.86, 0);
 export const CEILING_INWARD_NORMAL = new THREE.Vector3(0, -1, 0);
@@ -152,7 +155,7 @@ export const WALL_PLACEMENTS = [
   {
     name: 'Wall_South',
     position: new THREE.Vector3(0, 1.4, 2.34),
-    rotationY: Math.PI / 2,
+    rotationY: 0, // Door wall is authored on +Z, left when facing the headboard.
     inwardNormal: new THREE.Vector3(0, 0, -1),
   },
 ] as const;

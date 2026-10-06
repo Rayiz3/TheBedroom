@@ -113,6 +113,17 @@ export function RoomViewer({
     DEFAULT_LIGHTING.ceilingLightTemperature,
   );
 
+  const restoreEnvironmentDefaults = () => {
+    setHdriSource(DEFAULT_LIGHTING.hdriSource as RoomHdri);
+    setHdriIntensity(DEFAULT_LIGHTING.hdriIntensity);
+    setAmbientIntensity(DEFAULT_LIGHTING.ambientIntensity);
+    setDirectionalIntensity(DEFAULT_LIGHTING.directionalIntensity);
+    setDirectionalDirection(DEFAULT_LIGHTING.directionalDirection);
+    setDirectionalElevation(DEFAULT_LIGHTING.directionalElevation);
+    setCeilingLightIntensity(DEFAULT_LIGHTING.ceilingLightIntensity);
+    setCeilingLightTemperature(DEFAULT_LIGHTING.ceilingLightTemperature);
+    setEnvironmentSaveMessage('JSON에 저장된 기본값으로 되돌렸습니다.');
+  };
   const saveEnvironmentDefaults = async () => {
     try {
       const response = await fetch('/api/room/environment-defaults', {
@@ -310,6 +321,7 @@ export function RoomViewer({
               setCeilingLightTemperature,
             )}
             onSaveEnvironmentDefaults={saveEnvironmentDefaults}
+            onRestoreEnvironmentDefaults={restoreEnvironmentDefaults}
             environmentSaveMessage={environmentSaveMessage}
             showColliders={showColliders}
             onShowCollidersChange={measureChange(setShowColliders)}

@@ -2,6 +2,12 @@
   background: #181817;
 }
 
+.environmentActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .saveMeasurements {
   display: block;
   margin-top: 10px;

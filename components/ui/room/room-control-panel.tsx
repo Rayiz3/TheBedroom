@@ -60,6 +60,7 @@ type RoomControlPanelProps = {
   ceilingLightTemperature: number;
   onCeilingLightTemperatureChange: (value: number) => void;
   onSaveEnvironmentDefaults: () => void;
+  onRestoreEnvironmentDefaults: () => void;
   environmentSaveMessage: string;
   hdriSource: RoomHdri;
   onHdriSourceChange: (value: RoomHdri) => void;
@@ -227,13 +228,22 @@ export function RoomControlPanel(props: RoomControlPanelProps) {
                 onChange={props.onCeilingLightTemperatureChange}
               />
             </div>
-            <button
-              type="button"
-              className={styles.saveMeasurements}
-              onClick={props.onSaveEnvironmentDefaults}
-            >
-              기본값으로 설정
-            </button>
+            <div className={styles.environmentActions}>
+              <button
+                type="button"
+                className={styles.saveMeasurements}
+                onClick={props.onSaveEnvironmentDefaults}
+              >
+                기본값으로 설정
+              </button>
+              <button
+                type="button"
+                className={styles.saveMeasurements}
+                onClick={props.onRestoreEnvironmentDefaults}
+              >
+                기본값으로 되돌리기
+              </button>
+            </div>
             <output className={styles.metricNote} aria-live="polite">
               {props.environmentSaveMessage}
             </output>
