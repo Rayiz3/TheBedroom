@@ -172,7 +172,7 @@
 }
 .swatches {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: 6px;
   margin-top: 9px;
 }
@@ -202,6 +202,10 @@
 .swatch svg {
   visibility: hidden;
   color: #332b3b;
+}
+.noneLabel {
+  font-size: 10px;
+  color: var(--ink);
 }
 .swatchOption input:checked + .swatch {
   outline: 1.5px solid var(--purple);
@@ -366,8 +370,9 @@
     gap: 20px;
   }
   .swatch {
-    width: 36px;
-    height: 36px;
+    width: min(36px, 100%);
+    height: auto;
+    aspect-ratio: 1;
   }
   .hint {
     bottom: 14px;

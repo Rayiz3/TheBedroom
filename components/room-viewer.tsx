@@ -16,6 +16,7 @@ import {
   DEFAULT_PILLOW_PALETTE,
   type BedSize,
   type BeddingPalette,
+  type BeddingColor,
   type RoomHdri,
 } from '@/components/room/config';
 import { RoomEnvironment, BlenderLighting } from '@/components/room/lighting';
@@ -87,6 +88,10 @@ export function RoomViewer({
     pillow2: DEFAULT_PILLOW_PALETTE,
     duvet: DEFAULT_PILLOW_PALETTE,
   });
+  const handleBulkPaletteChange = (color: BeddingColor) => {
+    setpalette({ duvet: color, pad: color, pillow1: color, pillow2: color });
+    setBulkPaletteRevision((revision) => revision + 1);
+  };
   const [hdriSource, setHdriSource] = useState<RoomHdri>(
     DEFAULT_LIGHTING.hdriSource as RoomHdri,
   );
@@ -307,6 +312,7 @@ export function RoomViewer({
           onBedSizeChange={measureChange(handleBedSizeChange)}
           palette={palette}
           onPaletteChange={measureChange(setpalette)}
+          onBulkPaletteChange={measureChange(handleBulkPaletteChange)}
           sunlight={directionalDirection}
           onSunlightChange={measureChange(setDirectionalDirection)}
         />
@@ -352,15 +358,7 @@ export function RoomViewer({
             onBedSizeChange={measureChange(handleBedSizeChange)}
             palette={palette}
             onPaletteChange={measureChange(setpalette)}
-            onBulkPaletteChange={measureChange((color) => {
-              setpalette({
-                duvet: color,
-                pad: color,
-                pillow1: color,
-                pillow2: color,
-              });
-              setBulkPaletteRevision((revision) => revision + 1);
-            })}
+            onBulkPaletteChange={measureChange(handleBulkPaletteChange)}
           />
           <ViewerNavigation currentView="Room View" />
         </>

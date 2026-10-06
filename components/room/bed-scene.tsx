@@ -513,7 +513,7 @@ export function BedScene({
       const timers = parts.map((_, index) =>
         window.setTimeout(
           () => {
-            duvetPhysics.current?.useLiveSimulation();
+            // Keep the bulk-change duvet clip running while the pillows play.
             pillowPhysics.current?.play(index);
             roomPerformance.beginSimulation();
           },

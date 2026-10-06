@@ -2,11 +2,10 @@
 
 import { Check, Sun } from 'lucide-react';
 import {
-  PILLOW_PALETTE,
+  BEDDING_PALETTE,
   type BedSize,
   type BeddingPalette,
   type BeddingColor,
-  type Palette,
 } from '@/components/room/config';
 import styles from './configurator.module.css';
 
@@ -19,13 +18,14 @@ const COLOR_NAMES: Record<BeddingColor, string> = {
   rose: '파우더 로즈',
   taupe: '샌드 토프',
 };
-const COLOR_ORDER: Palette[] = [
+const COLOR_ORDER: BeddingColor[] = [
   'ivory',
   'sage',
   'lilac',
   'blue',
   'rose',
   'taupe',
+  'none',
 ];
 const PARTS = [
   { id: 'duvet', label: '이불' },
@@ -39,6 +39,7 @@ export function ConfiguratorPanel({
   onBedSizeChange,
   palette,
   onPaletteChange,
+  onBulkPaletteChange,
   sunlight,
   onSunlightChange,
 }: {
@@ -46,9 +47,29 @@ export function ConfiguratorPanel({
   onBedSizeChange: (value: BedSize) => void;
   palette: BeddingPalette;
   onPaletteChange: (value: BeddingPalette) => void;
+  onBulkPaletteChange: (value: BeddingColor) => void;
   sunlight: number;
   onSunlightChange: (value: number) => void;
 }) {
+  const uniformColor = Object.values(palette).every(
+    (color) => color === palette.duvet,
+  )
+    ? palette.duvet
+    : null;
+  const groups = [
+    {
+      id: 'all',
+      label: '일괄 변경',
+      color: uniformColor,
+      onChange: onBulkPaletteChange,
+    },
+    ...PARTS.map((part) => ({
+      ...part,
+      color: palette[part.id],
+      onChange: (color: BeddingColor) =>
+        onPaletteChange({ ...palette, [part.id]: color }),
+    })),
+  ];
   return (
     <aside className={styles.panel} aria-label="침실 구성">
       <div className={styles.intro}>
@@ -85,19 +106,17 @@ export function ConfiguratorPanel({
         </div>
       </fieldset>
       <div className={styles.colors}>
-        {PARTS.map((part) => (
+        {groups.map((part) => (
           <fieldset key={part.id} className={styles.colorField}>
             <legend>
               <span>{part.label}</span>
               <span className={styles.colorName}>
-                {palette[part.id] === 'none'
-                  ? '없음'
-                  : COLOR_NAMES[palette[part.id]]}
+                {part.color === null ? '혼합' : COLOR_NAMES[part.color]}
               </span>
             </legend>
             <div className={styles.swatches}>
               {COLOR_ORDER.map((id) => {
-                const color = PILLOW_PALETTE.find((color) => color.id === id)!;
+                const color = BEDDING_PALETTE.find((color) => color.id === id)!;
                 return (
                   <label
                     className={styles.swatchOption}
@@ -109,16 +128,22 @@ export function ConfiguratorPanel({
                       name={`configurator-${part.id}`}
                       value={id}
                       aria-label={`${part.label} ${COLOR_NAMES[id]}`}
-                      checked={palette[part.id] === id}
-                      onChange={() =>
-                        onPaletteChange({ ...palette, [part.id]: id })
-                      }
+                      checked={part.color === id}
+                      onChange={() => part.onChange(id)}
                     />
                     <span
                       className={styles.swatch}
-                      style={{ backgroundImage: `url(${color.path})` }}
+                      style={
+                        color.path
+                          ? { backgroundImage: `url(${color.path})` }
+                          : undefined
+                      }
                     >
-                      <Check size={15} strokeWidth={1.8} aria-hidden="true" />
+                      {id === 'none' ? (
+                        <span className={styles.noneLabel}>없음</span>
+                      ) : (
+                        <Check size={15} strokeWidth={1.8} aria-hidden="true" />
+                      )}
                     </span>
                   </label>
                 );

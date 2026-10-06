@@ -49,24 +49,35 @@ function model(name) {
     return new THREE.BufferAttribute(data, size);
   }
   const root = new THREE.Group();
-  for (const n of json.nodes) {
-    if (n.mesh === undefined) continue;
-    for (const p of json.meshes[n.mesh].primitives) {
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', accessor(p.attributes.POSITION));
-      if (p.indices !== undefined) g.setIndex(accessor(p.indices));
-      const mesh = new THREE.Mesh(g);
-      mesh.name = n.name;
-      if (n.translation) mesh.position.fromArray(n.translation);
-      if (n.rotation) mesh.quaternion.fromArray(n.rotation);
-      if (n.scale) mesh.scale.fromArray(n.scale);
-      if (n.matrix) {
-        mesh.matrix.fromArray(n.matrix);
-        mesh.matrix.decompose(mesh.position, mesh.quaternion, mesh.scale);
-      }
-      root.add(mesh);
+  const nodes = json.nodes.map((n) => {
+    const primitives =
+      n.mesh === undefined ? [] : json.meshes[n.mesh].primitives;
+    const meshes = primitives.map((p) => {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', accessor(p.attributes.POSITION));
+      if (p.indices !== undefined) geometry.setIndex(accessor(p.indices));
+      const mesh = new THREE.Mesh(geometry);
+      mesh.name = THREE.PropertyBinding.sanitizeNodeName(n.name || '');
+      mesh.userData.name = n.name;
+      return mesh;
+    });
+    const node = meshes.length === 1 ? meshes[0] : new THREE.Group();
+    if (meshes.length !== 1) node.add(...meshes);
+    node.name = THREE.PropertyBinding.sanitizeNodeName(n.name || '');
+    if (n.translation) node.position.fromArray(n.translation);
+    if (n.rotation) node.quaternion.fromArray(n.rotation);
+    if (n.scale) node.scale.fromArray(n.scale);
+    if (n.matrix) {
+      node.matrix.fromArray(n.matrix);
+      node.matrix.decompose(node.position, node.quaternion, node.scale);
     }
-  }
+    return node;
+  });
+  // Preserve inherited transforms, including the single bed frame's Z scale.
+  json.nodes.forEach((n, i) => {
+    for (const child of n.children || []) nodes[i].add(nodes[child]);
+  });
+  for (const id of json.scenes[json.scene || 0].nodes) root.add(nodes[id]);
   root.updateMatrixWorld(true);
   return root;
 }
@@ -121,6 +132,13 @@ for (const bedSize of ['single', 'queen']) {
   });
   if (supportBounds.isEmpty())
     throw new Error('Mattress required for pad placement');
+  // Regression: single's inherited Z scale must not be dropped by the loader.
+  // Current authored mattresses are approximately 1.12m / 1.52m wide.
+  const mattressWidth = supportBounds.max.z - supportBounds.min.z;
+  assert.ok(
+    Math.abs(mattressWidth - (bedSize === 'single' ? 1.12 : 1.52)) < 0.02,
+    `Unexpected ${bedSize} mattress width: ${mattressWidth}; check GLB hierarchy`,
+  );
   pad.position.set(0, 0, 0);
   pad.updateMatrixWorld(true);
   const padBounds = new THREE.Box3().setFromObject(pad, true);
@@ -285,9 +303,14 @@ for (const bedSize of ['single', 'queen']) {
     assert.ok(replay.positions.every((p) => Number.isFinite(p.x + p.y + p.z)));
     const beforeResetVersion = replay.mesh.geometry.attributes.position.version;
     replay.reset(true);
-    assert.equal(replay.mesh.geometry.attributes.position.version, beforeResetVersion);
+    assert.equal(
+      replay.mesh.geometry.attributes.position.version,
+      beforeResetVersion,
+    );
     replay.step(1 / 60);
-    assert.ok(replay.mesh.geometry.attributes.position.version > beforeResetVersion);
+    assert.ok(
+      replay.mesh.geometry.attributes.position.version > beforeResetVersion,
+    );
     replay.reset();
     assert.equal(replay.mode, 'baked');
     for (let frame = 0; frame < 119; frame++) replay.step(1 / 60);
