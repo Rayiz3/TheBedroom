@@ -1,8 +1,12 @@
 'use client';
 /* eslint-disable react/react-compiler -- Three.js scene objects are intentionally mutated through imperative APIs. */
-import { useMemo, useLayoutEffect } from 'react';
+import { useMemo, useLayoutEffect, useState, useEffect } from 'react';
+import { useThree, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useRoomModel } from './room-assets';
+import { RoomLampPointLight } from './lighting/point-light';
+import { LAMP_POINT_SETTINGS } from './lighting/lamp-point-settings';
+import { lampPointPosition } from './lighting/utils';
 import {
   BED_MODEL_PATHS,
   CARCASS_MODEL_PATH,
@@ -28,11 +32,18 @@ export function RoomFurniture({ bedSize }: { bedSize: BedSize }) {
     [objects1Gltf.scene],
   );
   const lamp = useMemo(() => lampGltf.scene.clone(true), [lampGltf.scene]);
+  const pointPosition = useMemo(() => lampPointPosition(lamp), [lamp]);
+  const [lampOn, setLampOn] = useState(LAMP_POINT_SETTINGS.defaultOn);
+  const { gl } = useThree();
+  useEffect(
+    () => () => {
+      gl.domElement.style.cursor = '';
+    },
+    [gl],
+  );
   useLayoutEffect(() => {
     const alignedBedBounds = new THREE.Box3().setFromObject(bed.scene);
-    // Measure furniture without its contents on every layout pass.
-    objects1.removeFromParent();
-    lamp.removeFromParent();
+    // Contents are JSX siblings, so carcass bounds never include them.
     carcasses.forEach((carcass) => {
       carcass.position.set(0, 0, 0);
       carcass.updateMatrixWorld(true);
@@ -102,19 +113,29 @@ export function RoomFurniture({ bedSize }: { bedSize: BedSize }) {
     });
     objects1.updateMatrixWorld(true);
 
-    // Preserve the placed world transforms, then follow the carcass in local space.
-    carcasses[0].attach(objects1);
-    carcasses[1].attach(lamp);
-
-    return () => {
-      objects1.removeFromParent();
-      lamp.removeFromParent();
-    };
+    // React owns all parent links, including during Fast Refresh.
   }, [bed.scene, carcasses, objects1, lamp]);
   return (
     <group name="Room_Furniture">
       <primitive object={carcasses[0]} />
       <primitive object={carcasses[1]} />
+      <primitive object={objects1} />
+      <primitive
+        object={lamp}
+        onClick={(event: ThreeEvent<MouseEvent>) => {
+          if (event.button !== 0 || event.delta > 4) return;
+          event.stopPropagation();
+          setLampOn((on) => !on);
+        }}
+        onPointerOver={() => {
+          gl.domElement.style.cursor = 'pointer';
+        }}
+        onPointerOut={() => {
+          gl.domElement.style.cursor = '';
+        }}
+      >
+        <RoomLampPointLight position={pointPosition} enabled={lampOn} />
+      </primitive>
     </group>
   );
 }

@@ -7,7 +7,11 @@ import { useLayoutEffect } from 'react';
 import * as THREE from 'three';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 
-import { ROOM_BACKGROUND_PATH, ROOM_HDRI_OPTIONS, type RoomHdri } from './config';
+import {
+  ROOM_BACKGROUND_PATH,
+  ROOM_HDRI_OPTIONS,
+  type RoomHdri,
+} from '../config';
 
 export function RoomEnvironment({
   source,

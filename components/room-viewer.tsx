@@ -18,8 +18,7 @@ import {
   type BeddingPalette,
   type RoomHdri,
 } from '@/components/room/config';
-import { RoomEnvironment } from '@/components/room/environment';
-import { BlenderLighting } from '@/components/room/lighting';
+import { RoomEnvironment, BlenderLighting } from '@/components/room/lighting';
 import { CeilingLamp } from '@/components/room/ceiling-lamp';
 import { RoomControlPanel } from '@/components/ui/room/room-control-panel';
 import { RoomStageOverlay } from '@/components/ui/room/room-stage-overlay';

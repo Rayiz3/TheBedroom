@@ -11,7 +11,8 @@ import {
   DIRECTIONAL_LIGHT_DISTANCE,
   ROOM_ORIGIN,
   WINDOW_SUN_COLOR,
-} from './config';
+} from '../config';
+import { directionalPosition } from './utils';
 
 function LightDirectionGuide({
   color,
@@ -57,14 +58,12 @@ function LightDirectionGuide({
   );
 }
 
-export function BlenderLighting({
-  ambientIntensity,
+export function RoomDirectionalLight({
   directionalIntensity,
   directionalDirection,
   directionalElevation,
   showGuide = true,
 }: {
-  ambientIntensity: number;
   directionalIntensity: number;
   directionalDirection: number;
   directionalElevation: number;
@@ -72,19 +71,15 @@ export function BlenderLighting({
 }) {
   const { scene } = useThree();
   const sun = useRef<THREE.DirectionalLight>(null);
-  const sunPosition = useMemo(() => {
-    const elevation = THREE.MathUtils.degToRad(directionalElevation);
-    const azimuth = THREE.MathUtils.degToRad(
-      DIRECTIONAL_LIGHT_BASE_AZIMUTH + directionalDirection,
-    );
-    const horizontalDistance = DIRECTIONAL_LIGHT_DISTANCE * Math.cos(elevation);
-
-    return new THREE.Vector3(
-      horizontalDistance * Math.cos(azimuth),
-      DIRECTIONAL_LIGHT_DISTANCE * Math.sin(elevation),
-      horizontalDistance * Math.sin(azimuth),
-    );
-  }, [directionalDirection, directionalElevation]);
+  const sunPosition = useMemo(
+    () =>
+      directionalPosition(
+        DIRECTIONAL_LIGHT_DISTANCE,
+        DIRECTIONAL_LIGHT_BASE_AZIMUTH + directionalDirection,
+        directionalElevation,
+      ),
+    [directionalDirection, directionalElevation],
+  );
 
   useEffect(() => {
     const sunLight = sun.current;
@@ -103,11 +98,6 @@ export function BlenderLighting({
 
   return (
     <>
-      <ambientLight
-        name="Room_Ambient_Fill"
-        color="#e4e0d8"
-        intensity={ambientIntensity}
-      />
       <directionalLight
         ref={sun}
         name="Window_Sun"

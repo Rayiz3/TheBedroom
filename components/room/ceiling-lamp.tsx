@@ -1,18 +1,17 @@
 'use client';
 
 /* eslint-disable react/react-compiler -- Three.js model transforms are resolved imperatively. */
-import { useMemo, useRef, useEffect } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useMemo, useRef, useEffect, useState } from 'react';
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
-import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
-import { colorFromKelvin } from '@/lib/light-temperature';
 import {
   CEILING_MODEL_PATH,
   CEILING_POSITION,
   CEILING_LAMP_MODEL_PATH,
 } from './config';
 import { useRoomModel } from './room-assets';
-import { CEILING_AREA_LIGHT_SETTINGS } from './ceiling-lamp-settings';
+import { CEILING_AREA_LIGHT_SETTINGS } from './lighting/ceiling-area-settings';
+import { RoomRectAreaLight } from './lighting/rect-area-light';
 import {
   isCameraInsideMeshBounds,
   setMainCameraRendering,
@@ -28,11 +27,12 @@ export function CeilingLamp({
   const gltf = useRoomModel(CEILING_LAMP_MODEL_PATH);
   const ceilingGltf = useRoomModel(CEILING_MODEL_PATH);
   const root = useRef<THREE.Group>(null);
-  const { camera } = useThree();
+  const renderedRef = useRef(true);
+  const [enabled, setEnabled] = useState(true);
+  const { camera, gl } = useThree();
   const cameraPoint = useMemo(() => new THREE.Vector3(), []);
   const scratch = useMemo(() => new THREE.Vector3(), []);
   const { model, emitters, ceilingBounds, materials } = useMemo(() => {
-    RectAreaLightUniformsLib.init();
     const model = gltf.scene.clone(true);
     const materials: THREE.Material[] = [];
     model.traverse((object) => {
@@ -78,6 +78,12 @@ export function CeilingLamp({
     () => () => materials.forEach((material) => material.dispose()),
     [materials],
   );
+  useEffect(
+    () => () => {
+      gl.domElement.style.cursor = '';
+    },
+    [gl],
+  );
   useFrame(() => {
     if (!root.current) return;
     camera.getWorldPosition(cameraPoint);
@@ -85,44 +91,35 @@ export function CeilingLamp({
       cameraPoint.y <= ceilingBounds.getCenter(scratch).y &&
       !ceilingBounds.containsPoint(cameraPoint) &&
       !isCameraInsideMeshBounds(model, cameraPoint, scratch);
+    renderedRef.current = rendered;
     setMainCameraRendering(root.current, rendered);
   });
-  const color = useMemo(() => colorFromKelvin(temperature), [temperature]);
   return (
-    <group ref={root} name="Ceiling_Lamp">
+    <group
+      ref={root}
+      name="Ceiling_Lamp"
+      onClick={(event: ThreeEvent<MouseEvent>) => {
+        if (!renderedRef.current || event.button !== 0 || event.delta > 4)
+          return;
+        event.stopPropagation();
+        setEnabled((on) => !on);
+      }}
+      onPointerOver={() => {
+        if (renderedRef.current) gl.domElement.style.cursor = 'pointer';
+      }}
+      onPointerOut={() => {
+        gl.domElement.style.cursor = '';
+      }}
+    >
       <primitive object={model} />
       {emitters.map((emitter) => (
-        <group
+        <RoomRectAreaLight
           key={emitter.name}
+          name={emitter.name}
           position={emitter.position}
-          rotation={[-Math.PI / 2, 0, 0]}
-        >
-          <rectAreaLight
-            name={`Ceiling_Light_${emitter.name}`}
-            width={CEILING_AREA_LIGHT_SETTINGS.width}
-            height={CEILING_AREA_LIGHT_SETTINGS.height}
-            intensity={intensity}
-            color={color}
-          />
-          <mesh name={`Ceiling_LED_${emitter.name}`} rotation={[0, Math.PI, 0]}>
-            <planeGeometry
-              args={[
-                CEILING_AREA_LIGHT_SETTINGS.width,
-                CEILING_AREA_LIGHT_SETTINGS.height,
-              ]}
-            />
-            <meshStandardMaterial
-              color="#eeeeea"
-              roughness={0.8}
-              metalness={0}
-              emissive={color}
-              emissiveIntensity={
-                Math.max(0, intensity) *
-                CEILING_AREA_LIGHT_SETTINGS.emissiveScale
-              }
-            />
-          </mesh>
-        </group>
+          intensity={enabled ? intensity : 0}
+          temperature={temperature}
+        />
       ))}
     </group>
   );
