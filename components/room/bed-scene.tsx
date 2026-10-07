@@ -265,12 +265,15 @@ export function BedScene({
     [padColorMaps, padDataTextures],
   );
   const controls = useMemo(
-    () => new OrbitControlsImpl(camera, gl.domElement),
-    [camera, gl],
+    () => new OrbitControlsImpl(camera),
+    [camera],
   );
   const cameraInitialized = useRef(false);
 
   useLayoutEffect(() => {
+    // Suspense hides layout effects while another bed GLB loads. Reconnect the
+    // reused controller when the scene returns instead of relying on its constructor.
+    controls.connect(gl.domElement);
     controls.enabled = !intro || intro.phase === 'ready';
     controls.enableDamping = true;
     controls.dampingFactor = 0.07;
@@ -278,7 +281,7 @@ export function BedScene({
     controls.minPolarAngle = 0.01;
     controls.maxPolarAngle = Math.PI / 2 - 0.01;
     return () => controls.dispose();
-  }, [controls, intro]);
+  }, [controls, gl, intro]);
 
   useLayoutEffect(() => {
     // Complete authored-transform correction and cloth initialization before rendering.
