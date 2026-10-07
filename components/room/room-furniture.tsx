@@ -1,7 +1,7 @@
 'use client';
 /* eslint-disable react/react-compiler -- Three.js scene objects are intentionally mutated through imperative APIs. */
-import { useMemo, useLayoutEffect, useState, useEffect } from 'react';
-import { useThree, type ThreeEvent } from '@react-three/fiber';
+import { useMemo, useLayoutEffect, useState, useEffect, useRef } from 'react';
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useRoomModel } from './room-assets';
 import { placeStoolAndVase } from './stool-placement';
@@ -36,6 +36,17 @@ export function RoomFurniture({ bedSize }: { bedSize: BedSize }) {
   const lamp = useMemo(() => lampGltf.scene.clone(true), [lampGltf.scene]);
   const pointPosition = useMemo(() => lampPointPosition(lamp), [lamp]);
   const [lampOn, setLampOn] = useState(LAMP_POINT_SETTINGS.defaultOn);
+  const lampHovered = useRef(false);
+  const lampBase = useRef(new THREE.Vector3());
+  const lampAnchor = useRef(new THREE.Vector3());
+  const reduceMotion = useRef(false);
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => { reduceMotion.current = query.matches; };
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
   const { gl } = useThree();
   useEffect(
     () => () => {
@@ -78,6 +89,7 @@ export function RoomFurniture({ bedSize }: { bedSize: BedSize }) {
     objects1.updateMatrixWorld(true);
 
     lamp.position.set(0, 0, 0);
+    lamp.scale.setScalar(1);
     lamp.updateMatrixWorld(true);
 
     const lampBounds = new THREE.Box3().setFromObject(lamp);
@@ -91,6 +103,8 @@ export function RoomFurniture({ bedSize }: { bedSize: BedSize }) {
       rightCarcassBounds.max.y - lampBounds.min.y,
       rightCarcassCenter.z - lampCenter.z,
     );
+    lampBase.current.copy(lamp.position);
+    lampAnchor.current.set(lampCenter.x, lampBounds.min.y, lampCenter.z);
     lamp.name = 'Lamp_On_Right_Carcass';
     lamp.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
@@ -117,6 +131,15 @@ export function RoomFurniture({ bedSize }: { bedSize: BedSize }) {
 
     // React owns all parent links, including during Fast Refresh.
   }, [bed.scene, carcasses, objects1, lamp]);
+  useFrame((_, delta) => {
+    const target = lampHovered.current ? 1.06 : 1;
+    if (lamp.scale.x === target) return;
+    const next = reduceMotion.current ? target : THREE.MathUtils.damp(lamp.scale.x, target, 14, delta);
+    const scale = Math.abs(next - target) < 0.0001 ? target : next;
+    lamp.scale.setScalar(scale);
+    // Grow around the base so the lamp stays seated on the carcass.
+    lamp.position.copy(lampBase.current).addScaledVector(lampAnchor.current, 1 - scale);
+  });
   return (
     <group name="Room_Furniture">
       <primitive object={carcasses[0]} />
@@ -129,10 +152,13 @@ export function RoomFurniture({ bedSize }: { bedSize: BedSize }) {
           event.stopPropagation();
           setLampOn((on) => !on);
         }}
-        onPointerOver={() => {
+        onPointerOver={(event: ThreeEvent<PointerEvent>) => {
+          event.stopPropagation();
+          lampHovered.current = true;
           gl.domElement.style.cursor = 'pointer';
         }}
         onPointerOut={() => {
+          lampHovered.current = false;
           gl.domElement.style.cursor = '';
         }}
       >
