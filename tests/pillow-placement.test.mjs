@@ -43,7 +43,10 @@ for (const [size, pillowName, offset] of [
     );
     bed.updateMatrixWorld(true);
     const mattress = new THREE.Box3();
+    const head = new THREE.Box3();
     bed.traverse((o) => {
+      if (o.isMesh && /head/i.test(o.name))
+        head.union(new THREE.Box3().setFromObject(o, true));
       if (o.isMesh && /mattress/i.test(o.name))
         mattress.union(new THREE.Box3().setFromObject(o, true));
     });
@@ -59,10 +62,11 @@ for (const [size, pillowName, offset] of [
     for (const side of [-1, 1]) {
       const pillow = source.clone(true);
       const targetZ = supportCenter.z + side * offset;
-      placePillow(pillow, mattress, placedPad, targetZ);
+      placePillow(pillow, head, placedPad, targetZ);
       const bounds = new THREE.Box3().setFromObject(pillow, true);
       assert.ok(Math.abs(bounds.min.y - placedPad.max.y) < 1e-6);
-      assert.ok(Math.abs(bounds.min.x - mattress.min.x - 0.02) < 1e-6);
+      assert.equal(head.isEmpty(), false);
+      assert.ok(Math.abs(bounds.min.x - head.max.x) < 1e-6);
       assert.ok(
         Math.abs(bounds.getCenter(new THREE.Vector3()).z - targetZ) < 1e-6,
       );
@@ -73,7 +77,7 @@ for (const [size, pillowName, offset] of [
       );
       pillow.position.addScalar(12);
       pillow.rotation.y = 0.4;
-      placePillow(pillow, mattress, placedPad, targetZ);
+      placePillow(pillow, head, placedPad, targetZ);
       assert.ok(
         new THREE.Box3()
           .setFromObject(pillow, true)

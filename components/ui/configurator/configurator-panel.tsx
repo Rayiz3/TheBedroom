@@ -43,6 +43,8 @@ export function ConfiguratorPanel({
   onBulkPaletteChange,
   sunlight,
   onSunlightChange,
+  lightEnabled,
+  onLightToggle,
 }: {
   bedSize: BedSize;
   onBedSizeChange: (value: BedSize) => void;
@@ -51,6 +53,8 @@ export function ConfiguratorPanel({
   onBulkPaletteChange: (value: BeddingColor) => void;
   sunlight: number;
   onSunlightChange: (value: number) => void;
+  lightEnabled: boolean;
+  onLightToggle: () => void;
 }) {
   const [openPalette, setOpenPalette] = useState<string | null>(null);
   const uniformColor = Object.values(palette).every(
@@ -184,6 +188,20 @@ export function ConfiguratorPanel({
         />
         <p>빛의 방향을 바꾸며 색감을 살펴보세요.</p>
       </section>
+      <div className={styles.lightControl}>
+        <span id="configurator-light-label">조명</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={lightEnabled}
+          aria-labelledby="configurator-light-label"
+          onClick={onLightToggle}
+          className={styles.lightToggle}
+        >
+          <span aria-hidden="true">{lightEnabled ? '켜짐' : '꺼짐'}</span>
+          <i aria-hidden="true" />
+        </button>
+      </div>
     </aside>
   );
 }

@@ -1,7 +1,19 @@
 'use client';
+/* eslint-disable react/react-compiler -- Intro state is an imperative Three.js animation controller; React tracks phase changes only. */
 
 import { Canvas, addAfterEffect } from '@react-three/fiber';
-import { Suspense, useCallback, useState, useEffect, useRef } from 'react';
+import {
+  Suspense,
+  useCallback,
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+} from 'react';
+import { createIntroState, type IntroPhase } from './room/intro-state';
+import { IntroCamera, RevealRoom } from './room/configurator-intro';
+import { ConfiguratorLoading } from './ui/configurator/configurator-loading';
+import { CeilingAreaLights } from './room/lighting/rect-area-light';
 import { roomPerformance } from './room/performance';
 import { RoomProductPanel } from './ui/room/room-product-panel';
 import * as THREE from 'three';
@@ -12,6 +24,10 @@ import { StaticRoomArchitecture } from '@/components/room/architecture';
 import { BedScene } from '@/components/room/bed-scene';
 import {
   BED_MODEL_PATHS,
+  PILLOW_MODEL_PATHS,
+  PAD_MODEL_PATHS,
+  DUVET_ASSETS,
+  ROOM_MODEL_PATHS,
   DEFAULT_LIGHTING,
   DEFAULT_PILLOW_PALETTE,
   type BedSize,
@@ -33,11 +49,21 @@ import configuratorStyles from './ui/configurator/configurator.module.css';
 import Link from 'next/link';
 import { Move } from 'lucide-react';
 
+const ignoreReady = () => {};
+
 export function RoomViewer({
   variant = 'room',
 }: {
   variant?: 'room' | 'configurator';
 }) {
+  const [intro, setIntro] = useState(createIntroState);
+  const [introPhase, setIntroPhase] = useState<IntroPhase>('bed');
+  const [bedLoadProgress, setBedLoadProgress] = useState(0);
+  const [ceilingLightEnabled, setCeilingLightEnabled] = useState(true);
+  const toggleCeilingLight = useCallback(
+    () => setCeilingLightEnabled((enabled) => !enabled),
+    [],
+  );
   const isConfigurator = variant === 'configurator';
   const [initialFrameReady, setInitialFrameReady] = useState(false);
   const timing = useRef({
@@ -58,6 +84,10 @@ export function RoomViewer({
         t.measured = true;
         // Reveal only after a frame with final placement and camera was submitted.
         setInitialFrameReady(true);
+        if (isConfigurator) {
+          intro.phase = 'room';
+          setIntroPhase('room');
+        }
         roomPerformance.publish({ initialMs: performance.now() - t.initial });
       }
       if (t.pending !== null && t.committed) {
@@ -65,7 +95,7 @@ export function RoomViewer({
         t.pending = null;
       }
     });
-  }, []);
+  }, [intro, isConfigurator]);
   const measureChange =
     <T,>(setter: (value: T) => void) =>
     (value: T) => {
@@ -154,8 +184,29 @@ export function RoomViewer({
     }
   };
 
+  const bedPaths = useMemo<readonly string[]>(
+    () => [
+      BED_MODEL_PATHS[bedSize],
+      PILLOW_MODEL_PATHS[bedSize],
+      PAD_MODEL_PATHS[bedSize],
+      DUVET_ASSETS[bedSize].model,
+    ],
+    [bedSize],
+  );
+  const remainingPaths = useMemo(
+    () => ROOM_MODEL_PATHS.filter((path) => !bedPaths.includes(path)),
+    [bedPaths],
+  );
+  const handleRoomReady = useCallback(() => {
+    if (intro.phase !== 'room') return;
+    intro.roomReady = true;
+  }, [intro]);
+  const handleReveal = useCallback(() => setIntroPhase('reveal'), []);
+  const handleIntroComplete = useCallback(() => setIntroPhase('ready'), []);
+  const interactive = !isConfigurator || introPhase === 'ready';
   const modelPath = BED_MODEL_PATHS[bedSize];
-  const ready = environmentReady && assetsReady && sceneReady;
+  const ready =
+    environmentReady && (isConfigurator || assetsReady) && sceneReady;
   useEffect(() => {
     timing.current.ready = ready;
     timing.current.committed = true;
@@ -181,11 +232,15 @@ export function RoomViewer({
   const handleSceneReady = useCallback(() => setSceneReady(true), []);
   const handleError = useCallback(() => setFailed(true), []);
   const handleRetry = useCallback(() => {
+    setIntro(createIntroState());
+    setIntroPhase('bed');
+    setBedLoadProgress(0);
     setInitialFrameReady(false);
     timing.current.measured = false;
     timing.current.ready = false;
     timing.current.initial = performance.now();
     setAssetsReady(false);
+    setEnvironmentReady(false);
     setSceneReady(false);
     setFailed(false);
   }, []);
@@ -196,13 +251,14 @@ export function RoomViewer({
 
   return (
     <main
+      data-intro-phase={isConfigurator ? introPhase : undefined}
       className={
         isConfigurator
           ? configuratorStyles.shell
           : `${shellStyles.shell} ${styles.viewer}`
       }
     >
-      {isConfigurator && (
+      {isConfigurator && interactive && (
         <Link
           href="/"
           className={configuratorStyles.brand}
@@ -223,7 +279,10 @@ export function RoomViewer({
           onRetry={handleRetry}
         >
           <Canvas
-            style={{ visibility: initialFrameReady ? 'visible' : 'hidden' }}
+            style={{
+              visibility: initialFrameReady ? 'visible' : 'hidden',
+              pointerEvents: interactive ? 'auto' : 'none',
+            }}
             shadows
             dpr={[1, 1.75]}
             camera={{ position: [3, 2, 4], fov: 38, near: 0.05, far: 100 }}
@@ -236,34 +295,90 @@ export function RoomViewer({
           >
             <Suspense fallback={null}>
               <RoomEnvironment
+                intro={isConfigurator ? intro : undefined}
                 source={hdriSource}
                 intensity={hdriIntensity}
                 onReady={handleEnvironmentReady}
               />
             </Suspense>
+            <RoomAssetPreloader
+              onProgress={
+                isConfigurator && !initialFrameReady
+                  ? setBedLoadProgress
+                  : undefined
+              }
+              key={
+                isConfigurator ? (initialFrameReady ? 'room' : 'bed') : 'all'
+              }
+              paths={
+                isConfigurator
+                  ? initialFrameReady
+                    ? remainingPaths
+                    : bedPaths
+                  : ROOM_MODEL_PATHS
+              }
+              onReady={
+                isConfigurator && !initialFrameReady
+                  ? ignoreReady
+                  : handleAssetsReady
+              }
+            />
+            <BlenderLighting
+              showGuide={!isConfigurator}
+              ambientIntensity={ambientIntensity}
+              directionalIntensity={directionalIntensity}
+              directionalDirection={directionalDirection}
+              directionalElevation={directionalElevation}
+              intro={isConfigurator ? intro : undefined}
+            />
+            <CeilingAreaLights
+              intensity={ceilingLightEnabled ? ceilingLightIntensity : 0}
+              temperature={ceilingLightTemperature}
+            />
+            {isConfigurator && (
+              <>
+                <IntroCamera
+                  intro={intro}
+                  onReveal={handleReveal}
+                  onComplete={handleIntroComplete}
+                />
+              </>
+            )}
+            {(!isConfigurator || (initialFrameReady && assetsReady)) && (
+              <Suspense fallback={null}>
+                {isConfigurator ? (
+                  <RevealRoom onReady={handleRoomReady}>
+                    <StaticRoomArchitecture
+                      lightEnabled={ceilingLightEnabled}
+                      onLightToggle={toggleCeilingLight}
+                    />
+                    <CeilingLamp
+                      enabled={ceilingLightEnabled}
+                      intensity={ceilingLightIntensity}
+                      temperature={ceilingLightTemperature}
+                    />
+                    <RoomStool />
+                    <RoomFurniture bedSize={bedSize} />
+                  </RevealRoom>
+                ) : (
+                  <>
+                    <StaticRoomArchitecture
+                      lightEnabled={ceilingLightEnabled}
+                      onLightToggle={toggleCeilingLight}
+                    />
+                    <CeilingLamp
+                      enabled={ceilingLightEnabled}
+                      intensity={ceilingLightIntensity}
+                      temperature={ceilingLightTemperature}
+                    />
+                    <RoomStool />
+                    <RoomFurniture bedSize={bedSize} />
+                  </>
+                )}
+              </Suspense>
+            )}
             <Suspense fallback={null}>
-              <RoomAssetPreloader onReady={handleAssetsReady} />
-            </Suspense>
-            <Suspense fallback={null}>
-              <BlenderLighting
-                showGuide={!isConfigurator}
-                ambientIntensity={ambientIntensity}
-                directionalIntensity={directionalIntensity}
-                directionalDirection={directionalDirection}
-                directionalElevation={directionalElevation}
-              />
-              <StaticRoomArchitecture />
-              <CeilingLamp
-                intensity={ceilingLightIntensity}
-                temperature={ceilingLightTemperature}
-              />
-              <RoomStool />
-            </Suspense>
-            <Suspense fallback={null}>
-              <RoomFurniture bedSize={bedSize} />
-            </Suspense>
-            <Suspense fallback={null}>
-              {environmentReady && assetsReady && (
+              {(isConfigurator || (environmentReady && assetsReady)) && (
                 <BedScene
                   bedSize={bedSize}
                   modelPath={modelPath}
@@ -271,6 +386,7 @@ export function RoomViewer({
                   bulkPaletteRevision={bulkPaletteRevision}
                   showColliders={showColliders}
                   onReady={handleSceneReady}
+                  intro={isConfigurator ? intro : undefined}
                 />
               )}
             </Suspense>
@@ -278,13 +394,13 @@ export function RoomViewer({
         </RoomViewerBoundary>
         {isConfigurator ? (
           <>
-            {!initialFrameReady && !failed && (
-              <output className={configuratorStyles.loading} aria-live="polite">
-                <span />
-                침실을 준비하고 있어요
-              </output>
+            {!failed && (
+              <ConfiguratorLoading
+                phase={introPhase}
+                progress={bedLoadProgress}
+              />
             )}
-            {initialFrameReady && !failed && (
+            {interactive && !failed && (
               <p className={configuratorStyles.hint}>
                 <Move size={14} /> 드래그해서 둘러보세요{' '}
                 <span>스크롤로 확대</span>
@@ -301,18 +417,24 @@ export function RoomViewer({
       </section>
 
       {isConfigurator ? (
-        <ConfiguratorPanel
-          bedSize={bedSize}
-          onBedSizeChange={measureChange(handleBedSizeChange)}
-          palette={palette}
-          onPaletteChange={measureChange(setpalette)}
-          onBulkPaletteChange={measureChange(handleBulkPaletteChange)}
-          sunlight={directionalDirection}
-          onSunlightChange={measureChange(setDirectionalDirection)}
-        />
+        interactive && (
+          <ConfiguratorPanel
+            lightEnabled={ceilingLightEnabled}
+            onLightToggle={toggleCeilingLight}
+            bedSize={bedSize}
+            onBedSizeChange={measureChange(handleBedSizeChange)}
+            palette={palette}
+            onPaletteChange={measureChange(setpalette)}
+            onBulkPaletteChange={measureChange(handleBulkPaletteChange)}
+            sunlight={directionalDirection}
+            onSunlightChange={measureChange(setDirectionalDirection)}
+          />
+        )
       ) : (
         <>
           <RoomControlPanel
+            lightEnabled={ceilingLightEnabled}
+            onLightToggle={toggleCeilingLight}
             ceilingLightIntensity={ceilingLightIntensity}
             onCeilingLightIntensityChange={measureChange(
               setCeilingLightIntensity,

@@ -55,6 +55,8 @@ function RangeControl({
 }
 
 type RoomControlPanelProps = {
+  lightEnabled: boolean;
+  onLightToggle: () => void;
   ceilingLightIntensity: number;
   onCeilingLightIntensityChange: (value: number) => void;
   ceilingLightTemperature: number;
@@ -207,6 +209,14 @@ export function RoomControlPanel(props: RoomControlPanelProps) {
               />
             </div>
             <div className={`${styles.rangeStack} ${styles.directionControls}`}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={props.lightEnabled}
+                  onChange={props.onLightToggle}
+                />{' '}
+                조명 {props.lightEnabled ? '켜짐' : '꺼짐'}
+              </label>
               <RangeControl
                 id="room-ceiling-light-intensity"
                 label="천장 조명 세기"

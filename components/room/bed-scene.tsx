@@ -5,6 +5,7 @@
 import { useFrame, useLoader, useThree } from '@react-three/fiber';
 import { roomPerformance } from './performance';
 import { BakedPillowPlayback } from './physics/pillow/baked-playback';
+import type { IntroState } from './intro-state';
 import { placePillow } from './pillow-placement';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
@@ -46,6 +47,7 @@ export function BedScene({
   bulkPaletteRevision = 0,
   showColliders,
   onReady,
+  intro,
 }: {
   bedSize: BedSize;
   modelPath: string;
@@ -53,6 +55,7 @@ export function BedScene({
   bulkPaletteRevision?: number;
   showColliders: boolean;
   onReady: () => void;
+  intro?: IntroState;
 }) {
   const gltf = useRoomModel(modelPath);
   const padGltf = useRoomModel(PAD_MODEL_PATHS[bedSize]);
@@ -92,7 +95,8 @@ export function BedScene({
   const dataSourceTextures = useLoader(THREE.TextureLoader, [
     ...FABRIC_DATA_TEXTURE_PATHS,
   ]);
-  const { camera, gl, size: viewportSize } = useThree();
+  const { camera: activeCamera, gl, size: viewportSize } = useThree();
+  const camera = intro?.perspective ?? activeCamera;
   const model = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
   const { pillows, pillowMeshes, pillowReferenceMeshes } = useMemo(() => {
     const models = [pillowGltf.scene.clone(true), pillowGltf.scene.clone(true)];
@@ -267,13 +271,14 @@ export function BedScene({
   const cameraInitialized = useRef(false);
 
   useLayoutEffect(() => {
+    controls.enabled = !intro || intro.phase === 'ready';
     controls.enableDamping = true;
     controls.dampingFactor = 0.07;
     controls.enablePan = false;
     controls.minPolarAngle = 0.01;
     controls.maxPolarAngle = Math.PI / 2 - 0.01;
     return () => controls.dispose();
-  }, [controls]);
+  }, [controls, intro]);
 
   useLayoutEffect(() => {
     // Complete authored-transform correction and cloth initialization before rendering.
@@ -316,7 +321,10 @@ export function BedScene({
     model.updateMatrixWorld(true);
 
     const supportBounds = new THREE.Box3();
+    const headBounds = new THREE.Box3();
     model.traverse((object) => {
+      if (object instanceof THREE.Mesh && /head/i.test(object.name))
+        headBounds.union(new THREE.Box3().setFromObject(object, true));
       if (!(object instanceof THREE.Mesh) || !/mattress/i.test(object.name))
         return;
       object.geometry.computeBoundingBox();
@@ -327,6 +335,8 @@ export function BedScene({
     });
     if (supportBounds.isEmpty())
       throw new Error('Mattress required for pad placement');
+    if (headBounds.isEmpty())
+      throw new Error('Bed head required for pillow placement');
     pad.position.set(0, 0, 0);
     pad.updateMatrixWorld(true);
     const padBounds = new THREE.Box3().setFromObject(pad, true);
@@ -352,7 +362,7 @@ export function BedScene({
       const targetZ =
         supportCenter.z +
         (index === 0 ? 1 : -1) * PILLOW_CENTER_OFFSETS_Z[bedSize];
-      placePillow(pillow, supportBounds, placedPadBounds, targetZ);
+      placePillow(pillow, headBounds, placedPadBounds, targetZ);
       pillow.name = `Pillow_${index + 1}`;
       pillowPoses.current[index].base.copy(pillow.position);
       pillow.traverse((object) => {
@@ -390,7 +400,7 @@ export function BedScene({
     const minRenderY = Math.min(
       ...duvetBinding.renderPositions.map((p) => p[1]),
     );
-    const dubetPosOffset = new THREE.Vector3(
+    const duvetPosOffset = new THREE.Vector3(
       mattressCenter.x + beddingOffset.x + 0.16,
       placedPadBounds.max.y + 0.12 - minRenderY,
       mattressCenter.z + beddingOffset.z,
@@ -407,7 +417,7 @@ export function BedScene({
       duvet,
       duvetBinding,
       surface,
-      dubetPosOffset,
+      duvetPosOffset,
       getBakedDuvetClip(bedSize),
     );
     roomPerformance.beginSimulation();
@@ -441,10 +451,26 @@ export function BedScene({
       camera.updateProjectionMatrix();
       controls.minDistance = fitDistance * 0.5;
       controls.maxDistance = fitDistance * 3;
+      if (intro && !intro.cameraReady) {
+        intro.destination.copy(camera.position);
+        intro.destinationRotation.copy(camera.quaternion);
+        intro.target.copy(bedCenter);
+        intro.perspective = camera as THREE.PerspectiveCamera;
+        intro.topViewHeight = Math.max(size.x, size.z / viewportAspect) * 1.35;
+        const topDistance =
+          intro.topViewHeight /
+          (2 * Math.tan(THREE.MathUtils.degToRad(fov / 2)));
+        intro.top.copy(bedCenter).add(new THREE.Vector3(0, topDistance, 0));
+        camera.position.copy(intro.top);
+        camera.up.set(-1, 0, 0);
+        camera.lookAt(bedCenter);
+        intro.topRotation.copy(camera.quaternion);
+        intro.cameraReady = true;
+      }
       cameraInitialized.current = true;
     }
     controls.target.copy(bedCenter);
-    controls.update();
+    if (!intro || intro.phase === 'ready') controls.update();
     onReady();
 
     return () => {
@@ -463,6 +489,7 @@ export function BedScene({
     };
   }, [
     bedSize,
+    intro,
     pad,
     colliderDebug,
     duvet,
@@ -544,7 +571,8 @@ export function BedScene({
   useEffect(() => () => duvet.geometry.dispose(), [duvet]);
   const performanceSample = useRef({ frames: 0, wall: 0, physics: 0, cpu: 0 });
   useFrame((_, delta) => {
-    controls.update();
+    controls.enabled = !intro || intro.phase === 'ready';
+    if (controls.enabled) controls.update();
     const started = performance.now();
     pillowPhysics.current?.step(delta);
     const pillowMs = performance.now() - started;

@@ -6,6 +6,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { memo, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useRoomModel } from './room-assets';
+import { RoomSwitch } from './room-switch';
 import {
   isCameraInsideMeshBounds,
   setMainCameraRendering,
@@ -41,7 +42,8 @@ function cloneRoomModel(source: THREE.Group) {
   return model;
 }
 
-function RoomArchitecture() {
+type ArchitectureProps = { lightEnabled: boolean; onLightToggle: () => void };
+function RoomArchitecture({ lightEnabled, onLightToggle }: ArchitectureProps) {
   const floorGltf = useRoomModel(FLOOR_MODEL_PATH);
   const wallGltf = useRoomModel(WALL_MODEL_PATH);
   const doorWallGltf = useRoomModel(WALL_DOOR_MODEL_PATH);
@@ -157,12 +159,17 @@ function RoomArchitecture() {
                 : WALL_SOURCE_OFFSET
             }
           />
+          {placement.name === 'Wall_South' && (
+            <RoomSwitch enabled={lightEnabled} onToggle={onLightToggle} />
+          )}
         </group>
       ))}
     </group>
   );
 }
 
-export const StaticRoomArchitecture = memo(function StaticRoomArchitecture() {
-  return <RoomArchitecture />;
+export const StaticRoomArchitecture = memo(function StaticRoomArchitecture(
+  props: ArchitectureProps,
+) {
+  return <RoomArchitecture {...props} />;
 });

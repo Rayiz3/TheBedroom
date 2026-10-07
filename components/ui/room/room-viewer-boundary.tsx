@@ -4,7 +4,16 @@ import { useLoader } from '@react-three/fiber';
 import { Component, type ReactNode } from 'react';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-import { ROOM_MODEL_PATHS } from '@/components/room/config';
+import * as THREE from 'three';
+import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
+import { ROOM_BINDING_PATHS } from '@/components/room/room-assets';
+import {
+  ROOM_MODEL_PATHS,
+  FABRIC_DATA_TEXTURE_PATHS,
+  ROOM_BACKGROUND_PATH,
+  ROOM_HDRI_OPTIONS,
+  PILLOW_PALETTE,
+} from '@/components/room/config';
 import styles from '../../room-viewer.module.css';
 
 export class RoomViewerBoundary extends Component<
@@ -37,7 +46,19 @@ export class RoomViewerBoundary extends Component<
   }
 
   retry = () => {
-    useLoader.clear(GLTFLoader, [...ROOM_MODEL_PATHS]);
+    ROOM_MODEL_PATHS.forEach((path) => useLoader.clear(GLTFLoader, path));
+    ROOM_BINDING_PATHS.forEach((path) =>
+      useLoader.clear(THREE.FileLoader, path),
+    );
+    useLoader.clear(THREE.TextureLoader, [...FABRIC_DATA_TEXTURE_PATHS]);
+    useLoader.clear(THREE.TextureLoader, ROOM_BACKGROUND_PATH);
+    PILLOW_PALETTE.forEach(({ path }) =>
+      useLoader.clear(THREE.TextureLoader, path),
+    );
+    useLoader.clear(
+      EXRLoader,
+      ROOM_HDRI_OPTIONS.map((option) => option.path),
+    );
     this.props.onRetry();
     this.setState({ failed: false });
   };

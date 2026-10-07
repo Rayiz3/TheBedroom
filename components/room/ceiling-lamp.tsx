@@ -1,8 +1,8 @@
 'use client';
 
 /* eslint-disable react/react-compiler -- Three.js model transforms are resolved imperatively. */
-import { useMemo, useRef, useEffect, useState } from 'react';
-import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
+import { useMemo, useRef, useEffect } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
   CEILING_MODEL_PATH,
@@ -20,16 +20,16 @@ import {
 export function CeilingLamp({
   intensity,
   temperature,
+  enabled,
 }: {
   intensity: number;
   temperature: number;
+  enabled: boolean;
 }) {
   const gltf = useRoomModel(CEILING_LAMP_MODEL_PATH);
   const ceilingGltf = useRoomModel(CEILING_MODEL_PATH);
   const root = useRef<THREE.Group>(null);
-  const renderedRef = useRef(true);
-  const [enabled, setEnabled] = useState(true);
-  const { camera, gl } = useThree();
+  const { camera } = useThree();
   const cameraPoint = useMemo(() => new THREE.Vector3(), []);
   const scratch = useMemo(() => new THREE.Vector3(), []);
   const { model, emitters, ceilingBounds, materials } = useMemo(() => {
@@ -78,12 +78,6 @@ export function CeilingLamp({
     () => () => materials.forEach((material) => material.dispose()),
     [materials],
   );
-  useEffect(
-    () => () => {
-      gl.domElement.style.cursor = '';
-    },
-    [gl],
-  );
   useFrame(() => {
     if (!root.current) return;
     camera.getWorldPosition(cameraPoint);
@@ -91,29 +85,14 @@ export function CeilingLamp({
       cameraPoint.y <= ceilingBounds.getCenter(scratch).y &&
       !ceilingBounds.containsPoint(cameraPoint) &&
       !isCameraInsideMeshBounds(model, cameraPoint, scratch);
-    renderedRef.current = rendered;
     setMainCameraRendering(root.current, rendered);
   });
   return (
-    <group
-      ref={root}
-      name="Ceiling_Lamp"
-      onClick={(event: ThreeEvent<MouseEvent>) => {
-        if (!renderedRef.current || event.button !== 0 || event.delta > 4)
-          return;
-        event.stopPropagation();
-        setEnabled((on) => !on);
-      }}
-      onPointerOver={() => {
-        if (renderedRef.current) gl.domElement.style.cursor = 'pointer';
-      }}
-      onPointerOut={() => {
-        gl.domElement.style.cursor = '';
-      }}
-    >
+    <group ref={root} name="Ceiling_Lamp">
       <primitive object={model} />
       {emitters.map((emitter) => (
         <RoomRectAreaLight
+          showLight={false}
           key={emitter.name}
           name={emitter.name}
           position={emitter.position}

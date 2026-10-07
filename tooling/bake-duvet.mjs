@@ -205,7 +205,7 @@ for (const bedSize of ['single', 'queen']) {
     throw new Error('Mattress mesh required for duvet placement');
   const mattressCenter = mattressBounds.getCenter(new THREE.Vector3());
   const minRenderY = Math.min(...duvetBinding.renderPositions.map((p) => p[1]));
-  const dubetPosOffset = new THREE.Vector3(
+  const duvetPosOffset = new THREE.Vector3(
     mattressCenter.x + beddingOffset.x + 0.16,
     placedPadBounds.max.y + 0.12 - minRenderY,
     mattressCenter.z + beddingOffset.z,
@@ -217,15 +217,15 @@ for (const bedSize of ['single', 'queen']) {
   if (duvet.geometry.attributes.uv && !duvet.geometry.attributes.uv1) {
     duvet.geometry.setAttribute('uv1', duvet.geometry.attributes.uv);
   }
-  const sim = new DuvetPhysics(duvet, duvetBinding, surface, dubetPosOffset);
+  const sim = new DuvetPhysics(duvet, duvetBinding, surface, duvetPosOffset);
 
   const frames = [];
   const capture = () =>
     frames.push(
       ...sim.positions.flatMap((p) => [
-        p.x - dubetPosOffset.x,
-        p.y - dubetPosOffset.y,
-        p.z - dubetPosOffset.z,
+        p.x - duvetPosOffset.x,
+        p.y - duvetPosOffset.y,
+        p.z - duvetPosOffset.z,
       ]),
     );
   capture();
@@ -256,7 +256,7 @@ for (const bedSize of ['single', 'queen']) {
       duvetGltf.scene.getObjectByName(duvetAsset.renderMesh).clone(),
       duvetBinding,
       surface,
-      dubetPosOffset,
+      duvetPosOffset,
       clip,
     );
     replay.step(0.05);
@@ -269,11 +269,11 @@ for (const bedSize of ['single', 'queen']) {
         assert.ok(
           Math.abs(
             replay.positions[i].getComponent(axis) -
-              (expected + dubetPosOffset.getComponent(axis)),
+              (expected + duvetPosOffset.getComponent(axis)),
           ) < 1e-6,
         );
       }
-    const shiftedOrigin = dubetPosOffset
+    const shiftedOrigin = duvetPosOffset
       .clone()
       .add(new THREE.Vector3(2, 0, -3));
     const shiftedMesh = duvetGltf.scene

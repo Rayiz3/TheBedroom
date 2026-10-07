@@ -77,7 +77,8 @@ export const VASE_MODEL_PATH = '/assets/vase.glb';
 export const FLOOR_MODEL_PATH = '/assets/floor.glb';
 export const WALL_MODEL_PATH = '/assets/wall.glb';
 export const WALL_DOOR_MODEL_PATH = '/assets/wall_door.glb';
-export const WINDOW_MODEL_PATH = '/assets/window.glb';
+export const SWITCH_MODEL_PATH = '/assets/switch.glb';
+export const WINDOW_MODEL_PATH = '/assets/wall_window.glb';
 export const CEILING_MODEL_PATH = '/assets/ceiling.glb';
 export const ROOM_BACKGROUND_PATH =
   '/DaySkyHDRI070B_2K/DaySkyHDRI070B_2K_TONEMAPPED.jpg';
@@ -96,6 +97,7 @@ export const ROOM_HDRI_OPTIONS = [
 export type RoomHdri = (typeof ROOM_HDRI_OPTIONS)[number]['id'];
 
 export const ROOM_MODEL_PATHS = [
+  SWITCH_MODEL_PATH,
   ...Object.values(PAD_MODEL_PATHS),
   ...Object.values(BED_MODEL_PATHS),
   ...Object.values(DUVET_ASSETS).map((asset) => asset.model),

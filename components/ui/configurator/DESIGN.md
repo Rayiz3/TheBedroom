@@ -109,3 +109,13 @@ Initial configuration is queen with lilac on all four bedding parts and the shar
 - Don't carry the root charcoal, silver, monospaced instrumentation or floating technical panels into this route.
 - Don't apply this local visual exception to Room or Texture views.
 - Don't add commerce claims, price, cart, or purchase actions without a product requirement.
+
+## Configurator introduction (2026-10-07)
+
+The entry sequence preserves the existing Spatially wordmark and warm neutral canvas. A centered wordmark, fine indeterminate line, and concise Korean loading label replace the spinner. No synthetic percentage is shown.
+
+Only the selected bed, pillow, pad, and duvet GLBs are requested initially, alongside their fabric/binding and environment assets. Models share individual useLoader cache entries. After the first prepared bed frame, the canvas reveals a locked top view against the existing HDRI JPG background and begins the remaining GLB requests. A compact loading status remains visible. Ambient, HDRI, and a temporary area light illuminate this stage; directional intensity is zero.
+
+When the remaining room models mount, their materials and lights start at zero opacity/intensity. The top view holds for at least 0.9 seconds, including the 0.7-second logo-cover exit. A shared 2.8-second eased timeline moves to the captured original camera transform, fades the room in, and restores directional azimuth from 180 degrees and intensity from zero to the saved defaults. The temporary area light hands off to the normal room lights. Original React-owned materials are restored at completion. Controls, home logo, and mouse interaction become available only after completion.
+
+The intro runs only on Configurator. Reduced motion keeps both loading gates but skips the hold and camera travel. Load failures use the existing retry boundary; retry resets the sequence and clears model, binding, environment, and fabric cache entries. Mobile keeps its established scene-above-panel layout without resizing the scene at the end of the intro.

@@ -2,7 +2,7 @@
 
 /* eslint-disable react/react-compiler -- Three.js scene objects are intentionally mutated through imperative APIs. */
 
-import { useThree } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 
@@ -12,6 +12,7 @@ import {
   ROOM_ORIGIN,
   WINDOW_SUN_COLOR,
 } from '../config';
+import type { IntroState } from '../intro-state';
 import { directionalPosition } from './utils';
 
 function LightDirectionGuide({
@@ -63,11 +64,13 @@ export function RoomDirectionalLight({
   directionalDirection,
   directionalElevation,
   showGuide = true,
+  intro,
 }: {
   directionalIntensity: number;
   directionalDirection: number;
   directionalElevation: number;
   showGuide?: boolean;
+  intro?: IntroState;
 }) {
   const { scene } = useThree();
   const sun = useRef<THREE.DirectionalLight>(null);
@@ -96,6 +99,20 @@ export function RoomDirectionalLight({
     sun.current.target.updateMatrixWorld();
   }, [sunPosition]);
 
+  useFrame(() => {
+    if (!intro || !sun.current) return;
+    const p = intro.progress * intro.progress;
+    sun.current.intensity = directionalIntensity * p;
+    sun.current.position.copy(
+      directionalPosition(
+        DIRECTIONAL_LIGHT_DISTANCE,
+        DIRECTIONAL_LIGHT_BASE_AZIMUTH +
+          THREE.MathUtils.lerp(180, directionalDirection, intro.progress),
+        directionalElevation,
+      ),
+    );
+  });
+
   return (
     <>
       <directionalLight
@@ -104,7 +121,7 @@ export function RoomDirectionalLight({
         castShadow
         position={sunPosition}
         color={WINDOW_SUN_COLOR}
-        intensity={directionalIntensity}
+        intensity={intro ? 0 : directionalIntensity}
         shadow-intensity={0.75}
         shadow-bias={-0.0002}
         shadow-normalBias={0.02}
