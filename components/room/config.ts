@@ -29,6 +29,13 @@ export const DUVET_ASSETS = {
   },
 } as const;
 
+export const BEDDING_MODEL_PATHS: readonly string[] = [
+  ...Object.values(BED_MODEL_PATHS),
+  ...Object.values(PILLOW_MODEL_PATHS),
+  ...Object.values(PAD_MODEL_PATHS),
+  ...Object.values(DUVET_ASSETS).map((asset) => asset.model),
+];
+
 // 매트리스 Z 중심에서 각 베개 중심까지의 거리(m).
 // 기존 두 베개 사이 거리의 절반으로, 간격은 유지하고 중앙 정렬합니다.
 export const PILLOW_CENTER_OFFSETS_Z = {

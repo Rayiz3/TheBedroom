@@ -464,6 +464,11 @@
   overflow: hidden;
   background: #dbd4de;
 }
+.roomRule {
+  width: 100%;
+  min-width: 112px;
+  height: 2px;
+}
 .shell[data-intro-phase]:not([data-intro-phase='ready']) {
   overflow: hidden;
 }

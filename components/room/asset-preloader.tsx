@@ -2,7 +2,36 @@
 import { useLoader } from '@react-three/fiber';
 import { Suspense, useCallback, useEffect, useRef } from 'react';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { ROOM_MODEL_PATHS } from './config';
+import { FileLoader } from 'three';
+import { BEDDING_MODEL_PATHS, DUVET_ASSETS, ROOM_MODEL_PATHS } from './config';
+
+export function BackgroundBedPreloader({
+  enabled,
+  onStart,
+}: {
+  enabled: boolean;
+  onStart?: () => void;
+}) {
+  useEffect(() => {
+    if (!enabled) return;
+    const preload = () => {
+      onStart?.();
+      BEDDING_MODEL_PATHS.forEach((path) =>
+        useLoader.preload(GLTFLoader, path),
+      );
+      Object.values(DUVET_ASSETS).forEach((asset) =>
+        useLoader.preload(FileLoader, asset.binding),
+      );
+    };
+    if ('requestIdleCallback' in window) {
+      const id = window.requestIdleCallback(preload, { timeout: 2000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = setTimeout(preload, 250);
+    return () => clearTimeout(id);
+  }, [enabled, onStart]);
+  return null;
+}
 
 function ModelReady({
   path,

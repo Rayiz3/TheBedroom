@@ -9,6 +9,7 @@ export function createIntroState() {
     phase: 'bed' as IntroPhase,
     progress: 0,
     elapsed: 0,
+    revealStartedAt: null as number | null,
     cameraReady: false,
     roomReady: false,
     perspective: null as THREE.PerspectiveCamera | null,
@@ -32,17 +33,30 @@ export function advanceIntro(
   camera: THREE.Camera,
   delta: number,
   reducedMotion: boolean,
+  nowMs?: number,
 ): IntroPhase | null {
   if (!intro.cameraReady || intro.phase === 'bed' || intro.phase === 'ready')
     return null;
-  intro.elapsed += Math.max(0, delta);
   if (intro.phase === 'room') {
+    intro.elapsed += Math.max(0, delta);
     // Let the logo cover clear and the top view register even on a warm cache.
     if (!intro.roomReady || (!reducedMotion && intro.elapsed < 0.9))
       return null;
     intro.phase = 'reveal';
     intro.elapsed = 0;
+    intro.revealStartedAt = null;
+    intro.progress = 0;
+    // Projection and room visibility change atomically at this starting pose.
+    camera.position.copy(intro.top);
+    camera.up.set(-1, 0, 0);
+    camera.lookAt(intro.target);
+    camera.updateMatrixWorld();
     return 'reveal';
+  }
+  if (nowMs === undefined) intro.elapsed += Math.max(0, delta);
+  else {
+    intro.revealStartedAt ??= nowMs;
+    intro.elapsed = Math.max(0, (nowMs - intro.revealStartedAt) / 1000);
   }
   const t = reducedMotion ? 1 : Math.min(intro.elapsed / INTRO_DURATION, 1);
   intro.progress = introEase(t);

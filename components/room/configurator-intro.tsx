@@ -1,9 +1,16 @@
 'use client';
 /* eslint-disable react/react-compiler -- Intro animation mutates Three.js objects without per-frame React renders. */
 import { useFrame, useThree } from '@react-three/fiber';
-import { useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  type ReactNode,
+} from 'react';
 import * as THREE from 'three';
 import { advanceIntro, type IntroState } from './intro-state';
+import { prepareGpu } from './prepare-gpu';
 
 export function IntroCamera({
   intro,
@@ -54,6 +61,7 @@ export function IntroCamera({
       intro.perspective,
       delta,
       reduced.current,
+      performance.now(),
     );
     if (phase === 'reveal') {
       set({ camera: intro.perspective });
@@ -61,23 +69,50 @@ export function IntroCamera({
     }
     if (phase === 'ready') onComplete();
   }, -2);
+  // R3F captures its state before running frame subscribers. Render using the
+  // current store so switching projection cannot draw a stale orthographic frame.
+  useFrame(() => {
+    const current = get();
+    current.gl.render(current.scene, current.camera);
+  }, 1);
   return null;
 }
 
 export function RevealRoom({
   onReady,
+  intro,
+  onError,
   children,
 }: {
   onReady: () => void;
+  intro: IntroState;
+  onError: () => void;
   children: ReactNode;
 }) {
-  const presented = useRef(false);
-  // Signal readiness only after the fully opaque room has rendered once.
-  // IntroCamera runs at -2, so camera movement starts on the following frame.
+  const root = useRef<THREE.Group>(null);
+  const { gl, scene } = useThree();
+  useEffect(() => {
+    if (!root.current || !intro.perspective) return;
+    let cancelled = false;
+    void prepareGpu(gl, root.current, intro.perspective, scene, () => cancelled)
+      .then(() => {
+        if (!cancelled) onReady();
+      })
+      .catch(() => {
+        if (!cancelled) onError();
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [gl, scene, intro, onReady, onError]);
   useFrame(() => {
-    if (presented.current) return;
-    presented.current = true;
-    onReady();
+    if (root.current)
+      root.current.visible =
+        intro.phase === 'reveal' || intro.phase === 'ready';
   }, 0);
-  return <group name="Room_Reveal">{children}</group>;
+  return (
+    <group ref={root} visible={false} name="Room_Reveal">
+      {children}
+    </group>
+  );
 }

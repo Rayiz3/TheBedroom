@@ -19,11 +19,15 @@ import { RoomProductPanel } from './ui/room/room-product-panel';
 import * as THREE from 'three';
 
 import { RoomFurniture, RoomStool } from '@/components/room/room-furniture';
-import { RoomAssetPreloader } from '@/components/room/asset-preloader';
+import {
+  BackgroundBedPreloader,
+  RoomAssetPreloader,
+} from '@/components/room/asset-preloader';
 import { StaticRoomArchitecture } from '@/components/room/architecture';
 import { BedScene } from '@/components/room/bed-scene';
 import {
   BED_MODEL_PATHS,
+  BEDDING_MODEL_PATHS,
   PILLOW_MODEL_PATHS,
   PAD_MODEL_PATHS,
   DUVET_ASSETS,
@@ -59,6 +63,8 @@ export function RoomViewer({
   const [intro, setIntro] = useState(createIntroState);
   const [introPhase, setIntroPhase] = useState<IntroPhase>('bed');
   const [bedLoadProgress, setBedLoadProgress] = useState(0);
+  const [roomAssetProgress, setRoomAssetProgress] = useState(0);
+  const [preparedStageCount, setPreparedStageCount] = useState(0);
   const [ceilingLightEnabled, setCeilingLightEnabled] = useState(true);
   const toggleCeilingLight = useCallback(
     () => setCeilingLightEnabled((enabled) => !enabled),
@@ -111,6 +117,9 @@ export function RoomViewer({
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [showColliders, setShowColliders] = useState(false);
   const [bedSize, setBedSize] = useState<BedSize>('queen');
+  const [warmBeds, setWarmBeds] = useState(false);
+  const preparation = useRef({ room: false, queen: false, single: false });
+  const startBedPreparation = useCallback(() => setWarmBeds(true), []);
   const [bulkPaletteRevision, setBulkPaletteRevision] = useState(0);
   const [palette, setpalette] = useState<BeddingPalette>({
     pad: DEFAULT_PILLOW_PALETTE,
@@ -194,16 +203,41 @@ export function RoomViewer({
     [bedSize],
   );
   const remainingPaths = useMemo(
-    () => ROOM_MODEL_PATHS.filter((path) => !bedPaths.includes(path)),
-    [bedPaths],
+    () =>
+      ROOM_MODEL_PATHS.filter((path) => !BEDDING_MODEL_PATHS.includes(path)),
+    [],
   );
   const handleRoomReady = useCallback(() => {
     if (intro.phase !== 'room') return;
-    intro.roomReady = true;
+    preparation.current.room = true;
+    setPreparedStageCount(
+      Object.values(preparation.current).filter(Boolean).length,
+    );
+    intro.roomReady = preparation.current.queen && preparation.current.single;
+  }, [intro]);
+  const handleQueenPrepared = useCallback(() => {
+    preparation.current.queen = true;
+    setPreparedStageCount(
+      Object.values(preparation.current).filter(Boolean).length,
+    );
+    intro.roomReady = preparation.current.room && preparation.current.single;
+  }, [intro]);
+  const handleSinglePrepared = useCallback(() => {
+    preparation.current.single = true;
+    setPreparedStageCount(
+      Object.values(preparation.current).filter(Boolean).length,
+    );
+    intro.roomReady = preparation.current.room && preparation.current.queen;
   }, [intro]);
   const handleReveal = useCallback(() => setIntroPhase('reveal'), []);
   const handleIntroComplete = useCallback(() => setIntroPhase('ready'), []);
   const interactive = !isConfigurator || introPhase === 'ready';
+  // Each room GLB and each completed GPU preparation is one finished task.
+  // Loading files alone cannot report 100% while the room or beds are preparing.
+  const roomLoadProgress = Math.round(
+    (roomAssetProgress * remainingPaths.length + preparedStageCount * 100) /
+      (remainingPaths.length + 3),
+  );
   const modelPath = BED_MODEL_PATHS[bedSize];
   const ready =
     environmentReady && (isConfigurator || assetsReady) && sceneReady;
@@ -232,9 +266,12 @@ export function RoomViewer({
   const handleSceneReady = useCallback(() => setSceneReady(true), []);
   const handleError = useCallback(() => setFailed(true), []);
   const handleRetry = useCallback(() => {
+    preparation.current = { room: false, queen: false, single: false };
     setIntro(createIntroState());
     setIntroPhase('bed');
     setBedLoadProgress(0);
+    setRoomAssetProgress(0);
+    setPreparedStageCount(0);
     setInitialFrameReady(false);
     timing.current.measured = false;
     timing.current.ready = false;
@@ -305,7 +342,9 @@ export function RoomViewer({
               onProgress={
                 isConfigurator && !initialFrameReady
                   ? setBedLoadProgress
-                  : undefined
+                  : isConfigurator
+                    ? setRoomAssetProgress
+                    : undefined
               }
               key={
                 isConfigurator ? (initialFrameReady ? 'room' : 'bed') : 'all'
@@ -322,6 +361,10 @@ export function RoomViewer({
                   ? ignoreReady
                   : handleAssetsReady
               }
+            />
+            <BackgroundBedPreloader
+              onStart={startBedPreparation}
+              enabled={initialFrameReady}
             />
             <BlenderLighting
               showGuide={!isConfigurator}
@@ -347,7 +390,11 @@ export function RoomViewer({
             {(!isConfigurator || (initialFrameReady && assetsReady)) && (
               <Suspense fallback={null}>
                 {isConfigurator ? (
-                  <RevealRoom onReady={handleRoomReady}>
+                  <RevealRoom
+                    intro={intro}
+                    onReady={handleRoomReady}
+                    onError={handleError}
+                  >
                     <StaticRoomArchitecture
                       lightEnabled={ceilingLightEnabled}
                       onLightToggle={toggleCeilingLight}
@@ -372,24 +419,42 @@ export function RoomViewer({
                       temperature={ceilingLightTemperature}
                     />
                     <RoomStool />
-                    <RoomFurniture bedSize={bedSize} />
+                    <Suspense fallback={null}>
+                      <RoomFurniture bedSize={bedSize} />
+                    </Suspense>
                   </>
                 )}
               </Suspense>
             )}
-            <Suspense fallback={null}>
-              {(isConfigurator || (environmentReady && assetsReady)) && (
-                <BedScene
-                  bedSize={bedSize}
-                  modelPath={modelPath}
-                  palette={palette}
-                  bulkPaletteRevision={bulkPaletteRevision}
-                  showColliders={showColliders}
-                  onReady={handleSceneReady}
-                  intro={isConfigurator ? intro : undefined}
-                />
-              )}
-            </Suspense>
+            <group>
+              {(['queen', 'single'] as const).map((size) => (
+                <Suspense key={size} fallback={null}>
+                  {(warmBeds ||
+                    (isConfigurator && initialFrameReady) ||
+                    size === bedSize) &&
+                    (isConfigurator || (environmentReady && assetsReady)) && (
+                      <BedScene
+                        active={size === bedSize}
+                        preserveCamera={size !== 'queen'}
+                        warmGpu={!isConfigurator || assetsReady}
+                        onPrepared={
+                          size === 'queen'
+                            ? handleQueenPrepared
+                            : handleSinglePrepared
+                        }
+                        onPreparationError={handleError}
+                        bedSize={size}
+                        modelPath={BED_MODEL_PATHS[size]}
+                        palette={palette}
+                        bulkPaletteRevision={bulkPaletteRevision}
+                        showColliders={showColliders}
+                        onReady={handleSceneReady}
+                        intro={isConfigurator ? intro : undefined}
+                      />
+                    )}
+                </Suspense>
+              ))}
+            </group>
           </Canvas>
         </RoomViewerBoundary>
         {isConfigurator ? (
@@ -398,6 +463,7 @@ export function RoomViewer({
               <ConfiguratorLoading
                 phase={introPhase}
                 progress={bedLoadProgress}
+                roomProgress={roomLoadProgress}
               />
             )}
             {interactive && !failed && (

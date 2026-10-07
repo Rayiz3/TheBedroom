@@ -5,9 +5,11 @@ import styles from './configurator.module.css';
 export function ConfiguratorLoading({
   phase,
   progress,
+  roomProgress,
 }: {
   phase: IntroPhase;
   progress: number;
+  roomProgress: number;
 }) {
   return (
     <>
@@ -32,10 +34,15 @@ export function ConfiguratorLoading({
       </output>
       {(phase === 'room' || phase === 'reveal') && (
         <output className={styles.introStatus} aria-live="polite">
-          <span className={styles.statusLine} aria-hidden="true">
-            <i />
-          </span>
-          {phase === 'room' ? '침실을 불러오는 중' : '침실을 열고 있어요'}
+          <progress
+            className={`${styles.introRule} ${styles.roomRule}`}
+            aria-label="침실 준비 진행률"
+            max={100}
+            value={phase === 'room' ? roomProgress : 100}
+          />
+          {phase === 'room'
+            ? `침실을 불러오는 중 · ${roomProgress}%`
+            : '침실을 열고 있어요'}
         </output>
       )}
     </>

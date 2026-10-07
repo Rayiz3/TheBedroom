@@ -20,7 +20,13 @@ import {
   type BedSize,
 } from './config';
 
-export function RoomFurniture({ bedSize }: { bedSize: BedSize }) {
+export function RoomFurniture({
+  bedSize,
+  onReady,
+}: {
+  bedSize: BedSize;
+  onReady?: () => void;
+}) {
   const bed = useRoomModel(BED_MODEL_PATHS[bedSize]);
   const carcassGltf = useRoomModel(CARCASS_MODEL_PATH);
   const objects1Gltf = useRoomModel(OBJECTS1_MODEL_PATH);
@@ -42,7 +48,9 @@ export function RoomFurniture({ bedSize }: { bedSize: BedSize }) {
   const reduceMotion = useRef(false);
   useEffect(() => {
     const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const update = () => { reduceMotion.current = query.matches; };
+    const update = () => {
+      reduceMotion.current = query.matches;
+    };
     update();
     query.addEventListener('change', update);
     return () => query.removeEventListener('change', update);
@@ -130,15 +138,20 @@ export function RoomFurniture({ bedSize }: { bedSize: BedSize }) {
     objects1.updateMatrixWorld(true);
 
     // React owns all parent links, including during Fast Refresh.
-  }, [bed.scene, carcasses, objects1, lamp]);
+    onReady?.();
+  }, [bed.scene, carcasses, objects1, lamp, onReady]);
   useFrame((_, delta) => {
     const target = lampHovered.current ? 1.06 : 1;
     if (lamp.scale.x === target) return;
-    const next = reduceMotion.current ? target : THREE.MathUtils.damp(lamp.scale.x, target, 14, delta);
+    const next = reduceMotion.current
+      ? target
+      : THREE.MathUtils.damp(lamp.scale.x, target, 14, delta);
     const scale = Math.abs(next - target) < 0.0001 ? target : next;
     lamp.scale.setScalar(scale);
     // Grow around the base so the lamp stays seated on the carcass.
-    lamp.position.copy(lampBase.current).addScaledVector(lampAnchor.current, 1 - scale);
+    lamp.position
+      .copy(lampBase.current)
+      .addScaledVector(lampAnchor.current, 1 - scale);
   });
   return (
     <group name="Room_Furniture">

@@ -13,6 +13,35 @@ const { BedSurface } = await loadTypescript(
     import.meta.url,
   ),
 );
+const { getBakedDuvetClip } = await loadTypescript(
+  new URL('../components/room/physics/duvet/baked-clips.ts', import.meta.url),
+);
+void test('loading holds the settled duvet and replay starts from zero after preparation', () => {
+  const data = JSON.parse(
+    fs.readFileSync(
+      new URL('../public/assets/duvet_sim_binding.json', import.meta.url),
+    ),
+  );
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(6, 0.1, 6));
+  const sim = new DuvetPhysics(
+    model('duvet_qn').getObjectByName('duvet_render'),
+    data,
+    new BedSurface([floor]),
+    new THREE.Vector3(0, 2, 0),
+    getBakedDuvetClip('queen'),
+  );
+  sim.settle();
+  assert.equal(sim.finished, true);
+  const settled = sim.mesh.geometry.attributes.position.array.slice();
+  sim.step(50, 50000);
+  assert.deepEqual(sim.mesh.geometry.attributes.position.array, settled);
+  sim.reset();
+  assert.equal(sim.finished, false);
+  sim.step(50, 100000);
+  assert.equal(sim.elapsed, 0);
+  sim.step(1 / 60, 100500);
+  assert.equal(sim.elapsed, 0.5);
+});
 function model(name) {
   const bytes = fs.readFileSync(
     new URL(`../public/assets/${name}.glb`, import.meta.url),

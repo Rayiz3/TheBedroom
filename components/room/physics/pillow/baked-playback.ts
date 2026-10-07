@@ -1,5 +1,6 @@
 import { Quaternion } from 'three';
 import { BAKED_PILLOW_CLIPS, BAKED_PILLOW_FPS } from './baked-data';
+import { BakedClock } from '../baked-clock';
 
 /** Embedded clips: no network, Rapier initialization or per-trigger decoding. */
 export class BakedPillowPlayback {
@@ -8,6 +9,7 @@ export class BakedPillowPlayback {
     time: 0,
     lift: 0,
     rotation: new Quaternion(),
+    clock: new BakedClock(),
   }));
   private targetRotation = new Quaternion();
 
@@ -20,19 +22,17 @@ export class BakedPillowPlayback {
       Math.floor(this.random() * BAKED_PILLOW_CLIPS.length),
     );
     state.time = 0;
+    state.clock.reset();
     state.lift = 0;
     state.rotation.identity();
   }
 
-  step(delta: number) {
+  step(delta: number, nowMs?: number) {
     for (const state of this.states) {
       if (state.clip < 0) continue;
       const frames = BAKED_PILLOW_CLIPS[state.clip].frames;
       const last = frames.length / 5 - 1;
-      state.time = Math.min(
-        last / BAKED_PILLOW_FPS,
-        state.time + Math.max(0, delta),
-      );
+      state.time = state.clock.advance(delta, last / BAKED_PILLOW_FPS, nowMs);
       const frame = Math.min(last, state.time * BAKED_PILLOW_FPS);
       const a = Math.floor(frame),
         b = Math.min(a + 1, last),

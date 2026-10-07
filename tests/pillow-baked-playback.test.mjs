@@ -59,3 +59,16 @@ test('retrigger picks another approved clip and leaves the other pillow running'
   player.step(1 / 120);
   assert.equal(player.displacement(0), clips[4].frames[5]);
 });
+test('wall clock playback starts at first sample and ignores unrelated frame deltas', () => {
+  const a = new BakedPillowPlayback(() => 0);
+  const b = new BakedPillowPlayback(() => 0);
+  a.play(0);
+  b.play(0);
+  a.step(10, 1000);
+  b.step(0, 1000);
+  assert.equal(a.displacement(0), 0);
+  a.step(10, 1250);
+  b.step(0, 1250);
+  assert.equal(a.displacement(0), b.displacement(0));
+  assert.deepEqual(a.rotation(0).toArray(), b.rotation(0).toArray());
+});

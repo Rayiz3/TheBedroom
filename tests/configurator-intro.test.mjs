@@ -18,6 +18,22 @@ function fixture() {
   intro.cameraReady = true;
   return { intro, camera };
 }
+void test('GPU loading time does not advance the camera transition clock', () => {
+  const { intro, camera } = fixture();
+  intro.phase = 'room';
+  advanceIntro(intro, camera, 40, false, 40000);
+  intro.roomReady = true;
+  assert.equal(advanceIntro(intro, camera, 10, false, 50000), 'reveal');
+  assert.ok(camera.position.equals(intro.top));
+  assert.equal(intro.progress, 0);
+  advanceIntro(intro, camera, 20, false, 70000);
+  assert.equal(intro.progress, 0);
+  advanceIntro(intro, camera, 0.01, false, 70000 + INTRO_DURATION * 500);
+  assert.equal(intro.progress, 0.5);
+  advanceIntro(intro, camera, 0.01, false, 70000 + INTRO_DURATION * 1000);
+  assert.equal(intro.phase, 'ready');
+  assert.ok(camera.position.equals(intro.destination));
+});
 void test('bed and room loading hold top view until all room assets are ready', () => {
   const { intro, camera } = fixture();
   assert.equal(advanceIntro(intro, camera, 30, false), null);

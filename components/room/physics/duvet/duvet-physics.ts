@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { BakedClock } from '../baked-clock';
 import { BedSurface } from '../collision/bed-surface';
 import type { DuvetBinding } from './types';
 import {
@@ -23,6 +24,7 @@ export class DuvetPhysics {
     return (this.clip!.frames - 1) / this.clip!.fps / this.playbackRate;
   }
   private playback = false;
+  private readonly bakedClock = new BakedClock();
   private readonly playbackOrigin: THREE.Vector3;
   get mode() {
     return this.playback ? 'baked' : 'live';
@@ -210,6 +212,7 @@ export class DuvetPhysics {
   }
 
   reset(deferMeshUpdate = false) {
+    this.bakedClock.reset();
     this.playback = Boolean(this.clip);
     this.positions.forEach((point, index) => {
       point.copy(this.rest[index]);
@@ -224,16 +227,27 @@ export class DuvetPhysics {
     if (!deferMeshUpdate) this.updateMesh();
   }
 
-  step(delta: number) {
+  /** Loading presents the settled bed without running a clip behind the loader. */
+  settle() {
+    if (!this.clip) return;
+    this.playback = true;
+    this.elapsed = this.playbackDuration;
+    this.sampleClip((this.clip.frames - 1) / this.clip.fps, this.positions);
+    this.sampleClip((this.clip.frames - 1) / this.clip.fps, this.previous);
+    this.updateMesh();
+  }
+
+  step(delta: number, nowMs?: number) {
     this.timings.solverMs = 0;
     this.timings.meshMs = 0;
     this.timings.normalsMs = 0;
     if (this.finished) return;
     if (this.playback) {
       const started = performance.now();
-      this.elapsed = Math.min(
-        this.elapsed + Math.max(0, delta),
+      this.elapsed = this.bakedClock.advance(
+        delta,
         this.playbackDuration,
+        nowMs,
       );
       if (this.playbackDuration - this.elapsed < 1e-9)
         this.elapsed = this.playbackDuration;

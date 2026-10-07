@@ -9,7 +9,8 @@ import type { IntroState } from './intro-state';
 import { placePillow } from './pillow-placement';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
-import { OrbitControls as OrbitControlsImpl } from 'three/addons/controls/OrbitControls.js';
+import { getCameraControls } from './camera-controls';
+import { prepareGpu } from './prepare-gpu';
 import { useRoomModel, useRoomBinding } from './room-assets';
 import { createBedCollisionProxies } from './collision-proxies';
 import { BedSurface } from './physics/collision/bed-surface';
@@ -37,7 +38,10 @@ import {
   type BedSize,
   type BeddingPalette,
 } from './config';
-import { useDeferredFabricColorMaps } from './fabric-colors';
+import {
+  useDeferredFabricColorMaps,
+  prepareFabricColors,
+} from './fabric-colors';
 import { enableStochasticFabricColor } from './materials';
 
 export function BedScene({
@@ -48,6 +52,11 @@ export function BedScene({
   showColliders,
   onReady,
   intro,
+  active = true,
+  preserveCamera = false,
+  warmGpu = true,
+  onPrepared,
+  onPreparationError,
 }: {
   bedSize: BedSize;
   modelPath: string;
@@ -56,6 +65,11 @@ export function BedScene({
   showColliders: boolean;
   onReady: () => void;
   intro?: IntroState;
+  active?: boolean;
+  preserveCamera?: boolean;
+  warmGpu?: boolean;
+  onPrepared?: () => void;
+  onPreparationError?: () => void;
 }) {
   const gltf = useRoomModel(modelPath);
   const padGltf = useRoomModel(PAD_MODEL_PATHS[bedSize]);
@@ -82,6 +96,10 @@ export function BedScene({
   const duvetPhysics = useRef<DuvetPhysics | null>(null);
   const previousPalette = useRef(palette);
   const previousBulkRevision = useRef(bulkPaletteRevision);
+  const bulkMotion = useRef<{
+    startedAt: number | null;
+    nextPillow: number;
+  } | null>(null);
   const pillowPhysics = useRef<BakedPillowPlayback | null>(null);
   const pillowPoses = useRef(
     [0, 1].map(() => ({
@@ -95,8 +113,12 @@ export function BedScene({
   const dataSourceTextures = useLoader(THREE.TextureLoader, [
     ...FABRIC_DATA_TEXTURE_PATHS,
   ]);
-  const { camera: activeCamera, gl, size: viewportSize } = useThree();
-  const camera = intro?.perspective ?? activeCamera;
+  const { camera: activeCamera, gl, scene, size: viewportSize } = useThree();
+  const preparedRoot = useRef<THREE.Group>(null);
+  const gpuWarmed = useRef(false);
+  // The render camera switches projection during the intro; bed setup and orbit
+  // controls always retain the original perspective camera.
+  const camera = useRef(intro?.perspective ?? activeCamera).current;
   const model = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
   const { pillows, pillowMeshes, pillowReferenceMeshes } = useMemo(() => {
     const models = [pillowGltf.scene.clone(true), pillowGltf.scene.clone(true)];
@@ -130,10 +152,7 @@ export function BedScene({
       ),
     [pillowReferenceMeshes, pillows],
   );
-  const pillowColorMaps = useDeferredFabricColorMaps(
-    pillowTextureRepeat,
-    palette,
-  );
+  const pillowColorMaps = useDeferredFabricColorMaps(pillowTextureRepeat);
   const pillowDataTextures = useMemo(
     () =>
       dataSourceTextures.map((source) =>
@@ -179,10 +198,7 @@ export function BedScene({
       PILLOW_FABRIC_PATCH_SIZE,
     );
   }, [duvetGltf.scene, duvetAsset]);
-  const duvetColorMaps = useDeferredFabricColorMaps(
-    duvetTextureRepeat,
-    palette,
-  );
+  const duvetColorMaps = useDeferredFabricColorMaps(duvetTextureRepeat);
   const duvetDataTextures = useMemo(
     () =>
       dataSourceTextures.map((source) =>
@@ -201,10 +217,12 @@ export function BedScene({
   }, [pillowMaterial, duvetColorMaps, duvetDataTextures]);
   useLayoutEffect(() => {
     duvet.material = duvetMaterial;
-    duvetMaterial.map =
+    const nextMap =
       duvetColorMaps[
         palette.duvet === 'none' ? DEFAULT_PILLOW_PALETTE : palette.duvet
       ];
+    if (duvetMaterial.map !== nextMap) duvetMaterial.needsUpdate = true;
+    duvetMaterial.map = nextMap;
   }, [duvet, duvetMaterial, duvetColorMaps, palette]);
   useEffect(() => () => duvetMaterial.dispose(), [duvetMaterial]);
   useEffect(
@@ -226,7 +244,7 @@ export function BedScene({
       PILLOW_FABRIC_PATCH_SIZE,
     );
   }, [padGltf.scene]);
-  const padColorMaps = useDeferredFabricColorMaps(padTextureRepeat, palette);
+  const padColorMaps = useDeferredFabricColorMaps(padTextureRepeat);
   const padDataTextures = useMemo(
     () =>
       dataSourceTextures.map((source) =>
@@ -250,10 +268,12 @@ export function BedScene({
       object.castShadow = true;
       object.receiveShadow = true;
     });
-    padMaterial.map =
+    const nextMap =
       padColorMaps[
         palette.pad === 'none' ? DEFAULT_PILLOW_PALETTE : palette.pad
       ];
+    if (padMaterial.map !== nextMap) padMaterial.needsUpdate = true;
+    padMaterial.map = nextMap;
   }, [pad, padMaterial, padColorMaps, palette]);
   useEffect(() => () => padMaterial.dispose(), [padMaterial]);
   useEffect(
@@ -264,15 +284,16 @@ export function BedScene({
     },
     [padColorMaps, padDataTextures],
   );
-  const controls = useMemo(
-    () => new OrbitControlsImpl(camera),
-    [camera],
-  );
+  // OrbitControls updates its camera in the constructor. Background preparation
+  // must never move the live camera before this size becomes active.
+  const controls = useMemo(() => getCameraControls(camera), [camera]);
   const cameraInitialized = useRef(false);
 
   useLayoutEffect(() => {
     // Suspense hides layout effects while another bed GLB loads. Reconnect the
     // reused controller when the scene returns instead of relying on its constructor.
+    if (!active) return;
+    controls.object = camera;
     controls.connect(gl.domElement);
     controls.enabled = !intro || intro.phase === 'ready';
     controls.enableDamping = true;
@@ -281,7 +302,7 @@ export function BedScene({
     controls.minPolarAngle = 0.01;
     controls.maxPolarAngle = Math.PI / 2 - 0.01;
     return () => controls.dispose();
-  }, [controls, gl, intro]);
+  }, [controls, camera, gl, intro, active]);
 
   useLayoutEffect(() => {
     // Complete authored-transform correction and cloth initialization before rendering.
@@ -423,14 +444,44 @@ export function BedScene({
       duvetPosOffset,
       getBakedDuvetClip(bedSize),
     );
+    duvetPhysics.current.settle();
     roomPerformance.beginSimulation();
     colliderLines.push(duvetPhysics.current.createWireframe());
     colliderDebug.add(...colliderLines);
 
+    return () => {
+      duvetPhysics.current = null;
+      pillowPhysics.current = null;
+      colliderLines.forEach((lines) => {
+        colliderDebug.remove(lines);
+        lines.geometry.dispose();
+        lines.material.dispose();
+      });
+      collisionProxies.dispose();
+      materialAssignments.forEach(({ mesh, original, clones }) => {
+        mesh.material = original;
+        clones.forEach((material) => material.dispose());
+      });
+    };
+  }, [
+    bedSize,
+    pad,
+    colliderDebug,
+    duvet,
+    duvetBinding,
+    duvetGltf.scene,
+    duvetAsset,
+    model,
+    pillowMaterials,
+    pillows,
+  ]);
+
+  useLayoutEffect(() => {
+    if (!active) return;
     const bedBounds = new THREE.Box3().setFromObject(model);
     const bedCenter = bedBounds.getCenter(new THREE.Vector3());
 
-    if (!cameraInitialized.current) {
+    if (!cameraInitialized.current && !preserveCamera) {
       const size = bedBounds.getSize(new THREE.Vector3());
       const maxDimension = Math.max(size.x, size.y, size.z, 1);
       const fov = camera instanceof THREE.PerspectiveCamera ? camera.fov : 38;
@@ -471,40 +522,18 @@ export function BedScene({
         intro.cameraReady = true;
       }
       cameraInitialized.current = true;
+      controls.target.copy(bedCenter);
     }
-    controls.target.copy(bedCenter);
     if (!intro || intro.phase === 'ready') controls.update();
     onReady();
-
-    return () => {
-      duvetPhysics.current = null;
-      pillowPhysics.current = null;
-      colliderLines.forEach((lines) => {
-        colliderDebug.remove(lines);
-        lines.geometry.dispose();
-        lines.material.dispose();
-      });
-      collisionProxies.dispose();
-      materialAssignments.forEach(({ mesh, original, clones }) => {
-        mesh.material = original;
-        clones.forEach((material) => material.dispose());
-      });
-    };
   }, [
-    bedSize,
-    intro,
-    pad,
-    colliderDebug,
-    duvet,
-    duvetBinding,
-    duvetGltf.scene,
-    duvetAsset,
+    active,
     camera,
     controls,
+    intro,
     model,
     onReady,
-    pillowMaterials,
-    pillows,
+    preserveCamera,
     viewportSize.height,
     viewportSize.width,
   ]);
@@ -525,44 +554,36 @@ export function BedScene({
       const color = palette[part];
       const material = pillowMaterials[index];
       const map = color === 'none' ? null : pillowColorMaps[color];
-      if (Boolean(material.map) !== Boolean(map)) material.needsUpdate = true;
+      if (material.map !== map) material.needsUpdate = true;
       material.map = map;
       material.color.set(0xffffff);
     });
+    const previous = previousPalette.current;
+    previousPalette.current = palette;
+    if (!active || !gpuWarmed.current) return;
+    bulkMotion.current = null;
     if (bulkChange) {
-      previousPalette.current = palette;
       if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-      duvetPhysics.current?.reset(true);
+      duvetPhysics.current?.reset();
+      bulkMotion.current = { startedAt: null, nextPillow: 0 };
       roomPerformance.beginSimulation();
-      const timers = parts.map((_, index) =>
-        window.setTimeout(
-          () => {
-            // Keep the bulk-change duvet clip running while the pillows play.
-            pillowPhysics.current?.play(index);
-            roomPerformance.beginSimulation();
-          },
-          (index + 1) * 300,
-        ),
-      );
-      return () => timers.forEach(window.clearTimeout);
+      return;
     }
     parts.forEach((part, index) => {
-      if (previousPalette.current[part] !== palette[part]) {
+      if (previous[part] !== palette[part]) {
         duvetPhysics.current?.useLiveSimulation();
         pillowPhysics.current?.play(index);
         roomPerformance.beginSimulation();
       }
     });
-    if (previousPalette.current.duvet !== palette.duvet) {
-      duvetPhysics.current?.reset(true);
+    if (previous.duvet !== palette.duvet) {
+      duvetPhysics.current?.reset();
       roomPerformance.beginSimulation();
-    } else if (previousPalette.current.pad !== palette.pad) {
+    } else if (previous.pad !== palette.pad) {
       duvetPhysics.current?.applyFootCenterImpulse();
       roomPerformance.beginSimulation();
     }
-    previousPalette.current = palette;
-  }, [pillowColorMaps, pillowMaterials, palette, bulkPaletteRevision, bedSize]);
-
+  }, [pillowColorMaps, pillowMaterials, palette, bulkPaletteRevision, active]);
   useEffect(
     () => () => {
       Object.values(pillowColorMaps).forEach((texture) => texture.dispose());
@@ -572,12 +593,70 @@ export function BedScene({
   );
 
   useEffect(() => () => duvet.geometry.dispose(), [duvet]);
+  useEffect(() => {
+    if (!warmGpu || !preparedRoot.current) return;
+    if (gpuWarmed.current) {
+      onPrepared?.();
+      return;
+    }
+    let cancelled = false;
+    const root = preparedRoot.current;
+    void Promise.all(
+      [pillowColorMaps, duvetColorMaps, padColorMaps].map(prepareFabricColors),
+    )
+      .then(() =>
+        prepareGpu(
+          gl,
+          root,
+          camera,
+          scene,
+          () => cancelled,
+          [pillowColorMaps, duvetColorMaps, padColorMaps].flatMap(
+            Object.values,
+          ),
+        ),
+      )
+      .then(() => {
+        if (cancelled) return;
+        gpuWarmed.current = true;
+        onPrepared?.();
+      })
+      .catch(() => {
+        if (!cancelled) onPreparationError?.();
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    gl,
+    camera,
+    scene,
+    warmGpu,
+    onPrepared,
+    onPreparationError,
+    pillowColorMaps,
+    duvetColorMaps,
+    padColorMaps,
+  ]);
   const performanceSample = useRef({ frames: 0, wall: 0, physics: 0, cpu: 0 });
   useFrame((_, delta) => {
+    if (!active) return;
     controls.enabled = !intro || intro.phase === 'ready';
     if (controls.enabled) controls.update();
+    if (!gpuWarmed.current || (intro && intro.phase !== 'ready')) return;
     const started = performance.now();
-    pillowPhysics.current?.step(delta);
+    const sequence = bulkMotion.current;
+    if (sequence) {
+      sequence.startedAt ??= started;
+      while (
+        sequence.nextPillow < 2 &&
+        started - sequence.startedAt >= (sequence.nextPillow + 1) * 500
+      ) {
+        pillowPhysics.current?.play(sequence.nextPillow++);
+      }
+      if (sequence.nextPillow === 2) bulkMotion.current = null;
+    }
+    pillowPhysics.current?.step(delta, started);
     const pillowMs = performance.now() - started;
     pillows.forEach((pillow, index) => {
       const lift = pillowPhysics.current?.displacement(index) ?? 0;
@@ -615,7 +694,7 @@ export function BedScene({
     });
     const before = duvetPhysics.current?.elapsed ?? 0;
     if (duvetPhysics.current) {
-      duvetPhysics.current.step(delta);
+      duvetPhysics.current.step(delta, started);
     }
     duvetPhysics.current?.syncDebugWireframe(showColliders);
     const physicsElapsed = (duvetPhysics.current?.elapsed ?? before) - before;
@@ -646,7 +725,7 @@ export function BedScene({
   });
 
   return (
-    <group name="Bedroom_Furniture">
+    <group ref={preparedRoot} name="Bedroom_Furniture" visible={active}>
       <primitive object={colliderDebug} visible={showColliders} />
       <primitive object={model} />
       <primitive object={duvet} visible={palette.duvet !== 'none'} />
